@@ -365,9 +365,7 @@ ScanIntelProcessor (
 
     if (Cpu->Model >= CPU_MODEL_NEHALEM
       && Cpu->Model != CPU_MODEL_NEHALEM_EX
-      && Cpu->Model != CPU_MODEL_WESTMERE_EX
-      && Cpu->Model != CPU_MODEL_BONNELL
-      && Cpu->Model != CPU_MODEL_BONNELL_MID) {
+      && Cpu->Model != CPU_MODEL_WESTMERE_EX) {
       TurboLimit.Uint64 = AsmReadMsr64 (MSR_NEHALEM_TURBO_RATIO_LIMIT);
       Cpu->TurboBusRatio1 = (UINT8) TurboLimit.Bits.Maximum1C;
       Cpu->TurboBusRatio2 = (UINT8) TurboLimit.Bits.Maximum2C;
@@ -450,14 +448,10 @@ ScanIntelProcessor (
     }
   }
   //
-  // Calculate number of cores.
+  // Calculate number of cores
   // If we are under virtualization, then we should get the topology from CPUID the same was as with Penryn.
   //
-  if (Cpu->MaxId >= CPUID_CACHE_PARAMS
-    && (Cpu->Model <= CPU_MODEL_PENRYN
-    || Cpu->Model == CPU_MODEL_BONNELL
-    || Cpu->Model == CPU_MODEL_BONNELL_MID
-    || Cpu->Hypervisor)) {
+  if (Cpu->MaxId >= CPUID_CACHE_PARAMS && (Cpu->Model <= CPU_MODEL_PENRYN || Cpu->Hypervisor)) {
     AsmCpuidEx (CPUID_CACHE_PARAMS, 0, &CpuidCacheEax.Uint32, &CpuidCacheEbx.Uint32, NULL, NULL);
     if (CpuidCacheEax.Bits.CacheType != CPUID_CACHE_PARAMS_CACHE_TYPE_NULL) {
       CoreCount = (UINT16)GetPowerOfTwo32 (CpuidCacheEax.Bits.MaximumAddressableIdsForProcessorCores + 1);
@@ -477,13 +471,6 @@ ScanIntelProcessor (
     Msr = AsmReadMsr64 (MSR_CORE_THREAD_COUNT);
     Cpu->CoreCount   = (UINT16)BitFieldRead64 (Msr, 16, 19);
     Cpu->ThreadCount = (UINT16)BitFieldRead64 (Msr, 0,  15);
-  } else if (Cpu->Model == CPU_MODEL_BANIAS || Cpu->Model == CPU_MODEL_DOTHAN) {
-    //
-    // Banias and Dothan (Pentium M and Celeron M) never had
-    // multiple cores or threads, and do not support the MSR below.
-    //
-    Cpu->CoreCount   = 0;
-    Cpu->ThreadCount = 0;
   } else {
     Msr = AsmReadMsr64 (MSR_CORE_THREAD_COUNT);
     Cpu->CoreCount   = (UINT16)BitFieldRead64 (Msr, 16, 31);

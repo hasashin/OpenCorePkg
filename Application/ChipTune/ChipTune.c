@@ -48,7 +48,7 @@ UefiMain (
 
   OcConsoleControlSetMode (EfiConsoleControlScreenText);
 
-  OcSetConsoleResolution (0, 0, 0, FALSE);
+  OcSetConsoleResolution (0, 0, 0);
 
   Status = GetArguments (&Argc, &Argv);
   if (EFI_ERROR (Status) || Argc < 5) {

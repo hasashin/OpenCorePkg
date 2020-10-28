@@ -378,11 +378,6 @@ BiosVideoChildHandleInstall (
   BiosVideoPrivate->VgaMiniPort.CrtcDataRegisterBar       = EFI_PCI_IO_PASS_THROUGH_BAR;
 
   //
-  // Fill in OC Force Resolution Protocol fields
-  //
-  BiosVideoPrivate->OcForceResolution.SetResolution  = BiosVideoForceResolutionSetResolution;
-
-  //
   // Assume that Graphics Output Protocol will be produced until proven otherwise
   //
   BiosVideoPrivate->ProduceGraphicsOutput = TRUE;
@@ -394,23 +389,9 @@ BiosVideoChildHandleInstall (
   BiosVideoPrivate->ThunkContext = ParentThunkContext;
 
   //
-  // When check for VBE, PCI I/O protocol is needed, so use parent's protocol interface temporarily
+  // When check for VBE, PCI I/O protocol is needed, so use parent's protocol interface temporally
   //
   BiosVideoPrivate->PciIo = ParentPciIo;
-
-  //
-  // Get vendor ID from PCI
-  //
-  Status = BiosVideoPrivate->PciIo->Pci.Read (
-                        BiosVideoPrivate->PciIo,
-                        EfiPciIoWidthUint16,
-                        PCI_VENDOR_ID_OFFSET,
-                        1,
-                        &BiosVideoPrivate->PciVendorId
-                        );
-  if (EFI_ERROR (Status)) {
-    goto Done;
-  }
 
   //
   // Check for VESA BIOS Extensions for modes that are compatible with Graphics Output
@@ -456,7 +437,7 @@ BiosVideoChildHandleInstall (
     }
 
     //
-    // Create child handle and install Graphics Output Protocol,EDID Discovered/Active Protocol
+    // Creat child handle and install Graphics Output Protocol,EDID Discovered/Active Protocol
     //
     Status = gBS->InstallMultipleProtocolInterfaces (
                     &BiosVideoPrivate->Handle,
@@ -468,8 +449,6 @@ BiosVideoChildHandleInstall (
                     &BiosVideoPrivate->EdidDiscovered,
                     &gEfiEdidActiveProtocolGuid,
                     &BiosVideoPrivate->EdidActive,
-                    &gOcForceResolutionProtocolGuid,
-                    &BiosVideoPrivate->OcForceResolution,
                     NULL
                     );
 
@@ -641,7 +620,150 @@ BiosVideoChildHandleUninstall (
 }
 
 /**
-  Get VBE data from VBIOS.
+  Collect the resource from destroyed bios video device.
+
+  @param BiosVideoPrivate   Video child device private data structure
+
+**/
+VOID
+BiosVideoDeviceReleaseResource (
+  BIOS_VIDEO_DEV  *BiosVideoPrivate
+  )
+{
+  if (BiosVideoPrivate == NULL) {
+    return ;
+  }
+
+  //
+  // Release all the resourses occupied by the BIOS_VIDEO_DEV
+  //
+
+  //
+  // Free VGA Frame Buffer
+  //
+  if (BiosVideoPrivate->VgaFrameBuffer != NULL) {
+    gBS->FreePool (BiosVideoPrivate->VgaFrameBuffer);
+  }
+  //
+  // Free VBE Frame Buffer
+  //
+  if (BiosVideoPrivate->VbeFrameBuffer != NULL) {
+    gBS->FreePool (BiosVideoPrivate->VbeFrameBuffer);
+  }
+  //
+  // Free line buffer
+  //
+  if (BiosVideoPrivate->LineBuffer != NULL) {
+    gBS->FreePool (BiosVideoPrivate->LineBuffer);
+  }
+  //
+  // Free mode data
+  //
+  if (BiosVideoPrivate->ModeData != NULL) {
+    gBS->FreePool (BiosVideoPrivate->ModeData);
+  }
+  //
+  // Free memory allocated below 1MB
+  //
+  if (BiosVideoPrivate->PagesBelow1MB != 0) {
+    gBS->FreePages (BiosVideoPrivate->PagesBelow1MB, BiosVideoPrivate->NumberOfPagesBelow1MB);
+  }
+
+  if (BiosVideoPrivate->VbeSaveRestorePages != 0) {
+    gBS->FreePages (BiosVideoPrivate->VbeSaveRestoreBuffer, BiosVideoPrivate->VbeSaveRestorePages);
+  }
+  //
+  // Free graphics output protocol occupied resource
+  //
+  if (BiosVideoPrivate->GraphicsOutput.Mode != NULL) {
+    if (BiosVideoPrivate->GraphicsOutput.Mode->Info != NULL) {
+        gBS->FreePool (BiosVideoPrivate->GraphicsOutput.Mode->Info);
+    }
+    gBS->FreePool (BiosVideoPrivate->GraphicsOutput.Mode);
+  }
+  //
+  // Free EDID discovered protocol occupied resource
+  //
+  if (BiosVideoPrivate->EdidDiscovered.Edid != NULL) {
+    gBS->FreePool (BiosVideoPrivate->EdidDiscovered.Edid);
+  }
+  //
+  // Free EDID active protocol occupied resource
+  //
+  if (BiosVideoPrivate->EdidActive.Edid != NULL) {
+    gBS->FreePool (BiosVideoPrivate->EdidActive.Edid);
+  }
+
+  if (BiosVideoPrivate->DevicePath!= NULL) {
+    gBS->FreePool (BiosVideoPrivate->DevicePath);
+  }
+
+  gBS->FreePool (BiosVideoPrivate);
+
+  return ;
+}
+
+#define PCI_DEVICE_ENABLED  (EFI_PCI_COMMAND_IO_SPACE | EFI_PCI_COMMAND_MEMORY_SPACE)
+
+
+/**
+  Judge whether this device is VGA device.
+
+  @param PciIo      Parent PciIo protocol instance pointer
+
+  @retval TRUE  Is vga device
+  @retval FALSE Is no vga device
+**/
+BOOLEAN
+BiosVideoIsVga (
+  IN  EFI_PCI_IO_PROTOCOL       *PciIo
+  )
+{
+  EFI_STATUS    Status;
+  BOOLEAN       VgaCompatible;
+  PCI_TYPE00    Pci;
+
+  VgaCompatible = FALSE;
+
+  //
+  // Read the PCI Configuration Header
+  //
+  Status = PciIo->Pci.Read (
+                        PciIo,
+                        EfiPciIoWidthUint32,
+                        0,
+                        sizeof (Pci) / sizeof (UINT32),
+                        &Pci
+                        );
+  if (EFI_ERROR (Status)) {
+    return VgaCompatible;
+  }
+
+  //
+  // See if this is a VGA compatible controller or not
+  //
+  if ((Pci.Hdr.Command & PCI_DEVICE_ENABLED) == PCI_DEVICE_ENABLED) {
+    if (Pci.Hdr.ClassCode[2] == PCI_CLASS_OLD && Pci.Hdr.ClassCode[1] == PCI_CLASS_OLD_VGA) {
+      //
+      // Base Class 0x00 Sub-Class 0x01 - Backward compatible VGA device
+      //
+      VgaCompatible = TRUE;
+    }
+
+    if (Pci.Hdr.ClassCode[2] == PCI_CLASS_DISPLAY && Pci.Hdr.ClassCode[1] == PCI_CLASS_DISPLAY_VGA && Pci.Hdr.ClassCode[0] == 0x00) {
+      //
+      // Base Class 3 Sub-Class 0 Programming interface 0 - VGA compatible Display controller
+      //
+      VgaCompatible = TRUE;
+    }
+  }
+
+  return VgaCompatible;
+}
+
+
+/**
+  Check for VBE device
 
   @param BiosVideoPrivate - Pointer to BIOS_VIDEO_DEV structure
 
@@ -649,40 +771,69 @@ BiosVideoChildHandleUninstall (
 
 **/
 EFI_STATUS
-BiosVideoGetVbeData (
+EFIAPI
+BiosVideoCheckForVbe (
   IN OUT BIOS_VIDEO_DEV  *BiosVideoPrivate
   )
 {
   EFI_STATUS                             Status;
-  UINTN                                  PreferMode;
-  UINTN                                  ModeNumber;
   IA32_REGISTER_SET                      Regs;
   UINT16                                 *ModeNumberPtr;
   BIOS_VIDEO_MODE_DATA                   *ModeBuffer;
   BIOS_VIDEO_MODE_DATA                   *CurrentModeData;
+  UINTN                                  PreferMode;
+  UINTN                                  ModeNumber;
+  VESA_BIOS_EXTENSIONS_VALID_EDID_TIMING ValidEdidTiming;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE      *GraphicsOutputMode;
   UINT32                                 HighestHorizontalResolution;
   UINT32                                 HighestVerticalResolution;
   UINTN                                  HighestResolutionMode;
 
-  EFI_EDID_OVERRIDE_PROTOCOL             *EdidOverride;
-  UINT32                                 EdidOverrideAttributes;
-  UINTN                                  EdidOverrideSize;
-  UINT8                                  *EdidOverrideData;
+  //
+  // Allocate buffer under 1MB for VBE data structures
+  //
+  BiosVideoPrivate->NumberOfPagesBelow1MB = EFI_SIZE_TO_PAGES (
+                                              sizeof (VESA_BIOS_EXTENSIONS_INFORMATION_BLOCK) +
+                                              sizeof (VESA_BIOS_EXTENSIONS_MODE_INFORMATION_BLOCK) +
+                                              sizeof (VESA_BIOS_EXTENSIONS_EDID_DATA_BLOCK) +
+                                              sizeof (VESA_BIOS_EXTENSIONS_CRTC_INFORMATION_BLOCK)
+                                              );
+
+  BiosVideoPrivate->PagesBelow1MB = LEGACY_REGION_BASE - 1;
+
+  Status = gBS->AllocatePages (
+                  AllocateMaxAddress,
+                  EfiBootServicesData,
+                  BiosVideoPrivate->NumberOfPagesBelow1MB,
+                  &BiosVideoPrivate->PagesBelow1MB
+                  );
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  ZeroMem (&ValidEdidTiming, sizeof (VESA_BIOS_EXTENSIONS_VALID_EDID_TIMING));
+
+  //
+  // Fill in the Graphics Output Protocol
+  //
+  BiosVideoPrivate->GraphicsOutput.QueryMode = BiosVideoGraphicsOutputQueryMode;
+  BiosVideoPrivate->GraphicsOutput.SetMode = BiosVideoGraphicsOutputSetMode;
+  BiosVideoPrivate->GraphicsOutput.Blt     = BiosVideoGraphicsOutputVbeBlt;
+  BiosVideoPrivate->GraphicsOutput.Mode = NULL;
+
+  //
+  // Fill in the VBE related data structures
+  //
+  BiosVideoPrivate->VbeInformationBlock = (VESA_BIOS_EXTENSIONS_INFORMATION_BLOCK *) (UINTN) (BiosVideoPrivate->PagesBelow1MB);
+  BiosVideoPrivate->VbeModeInformationBlock = (VESA_BIOS_EXTENSIONS_MODE_INFORMATION_BLOCK *) (BiosVideoPrivate->VbeInformationBlock + 1);
+  BiosVideoPrivate->VbeEdidDataBlock = (VESA_BIOS_EXTENSIONS_EDID_DATA_BLOCK *) (BiosVideoPrivate->VbeModeInformationBlock + 1);
+  BiosVideoPrivate->VbeCrtcInformationBlock = (VESA_BIOS_EXTENSIONS_CRTC_INFORMATION_BLOCK *) (BiosVideoPrivate->VbeEdidDataBlock + 1);
+  BiosVideoPrivate->VbeSaveRestorePages   = 0;
+  BiosVideoPrivate->VbeSaveRestoreBuffer  = 0;
 
   HighestHorizontalResolution = 0;
   HighestVerticalResolution   = 0;
   HighestResolutionMode       = 0;
-
-  if (BiosVideoPrivate->EdidDiscovered.Edid != NULL) {
-    gBS->FreePool (BiosVideoPrivate->EdidDiscovered.Edid);
-  }
-  if (BiosVideoPrivate->EdidActive.Edid != NULL) {
-    gBS->FreePool (BiosVideoPrivate->EdidActive.Edid);
-  }
-  BiosVideoPrivate->EdidDiscovered.SizeOfEdid = 0;
-  BiosVideoPrivate->EdidDiscovered.Edid       = NULL;
-  BiosVideoPrivate->EdidActive.SizeOfEdid     = 0;
-  BiosVideoPrivate->EdidActive.Edid           = NULL;
 
   //
   // Test to see if the Video Adapter is compliant with VBE 3.0
@@ -725,6 +876,12 @@ BiosVideoGetVbeData (
   if (BiosVideoPrivate->VbeInformationBlock->VESASignature != VESA_BIOS_EXTENSIONS_VESA_SIGNATURE) {
     return Status;
   }
+
+  BiosVideoPrivate->EdidDiscovered.SizeOfEdid = 0;
+  BiosVideoPrivate->EdidDiscovered.Edid = NULL;
+
+  BiosVideoPrivate->EdidActive.SizeOfEdid = 0;
+  BiosVideoPrivate->EdidActive.Edid = NULL;
 
   //
   // Walk through the mode list to see if there is at least one mode the is compatible with the EDID mode
@@ -843,14 +1000,14 @@ BiosVideoGetVbeData (
     //
     // Add mode to the list of available modes
     //
-    ModeNumber++;
+    ModeNumber ++;
     Status = gBS->AllocatePool (
                     EfiBootServicesData,
                     ModeNumber * sizeof (BIOS_VIDEO_MODE_DATA),
                     (VOID **) &ModeBuffer
                     );
     if (EFI_ERROR (Status)) {
-      return Status;
+      goto Done;
     }
 
     if (ModeNumber > 1) {
@@ -911,335 +1068,13 @@ BiosVideoGetVbeData (
 
     BiosVideoPrivate->ModeData = ModeBuffer;
   }
-
   //
   // Check to see if we found any modes that are compatible with GRAPHICS OUTPUT
   //
   if (ModeNumber == 0) {
     Status = EFI_DEVICE_ERROR;
+    goto Done;
   }
-
-  BiosVideoPrivate->GraphicsOutput.Mode->MaxMode = (UINT32) ModeNumber;
-
-  //
-  // Current mode is unknown till now, set it to an invalid mode.
-  //
-  BiosVideoPrivate->GraphicsOutput.Mode->Mode = GRAPHICS_OUTPUT_INVALIDE_MODE_NUMBER;
-
-  //
-  // Find the best mode to initialize
-  //
-  Status = BiosVideoGraphicsOutputSetMode (&BiosVideoPrivate->GraphicsOutput, (UINT32) PreferMode);
-  if (EFI_ERROR (Status)) {
-    for (PreferMode = 0; PreferMode < ModeNumber; PreferMode++) {
-      Status = BiosVideoGraphicsOutputSetMode (
-                &BiosVideoPrivate->GraphicsOutput,
-                (UINT32) PreferMode
-                );
-      if (!EFI_ERROR (Status)) {
-        break;
-      }
-    }
-  }
-
-  //
-  // Read EDID information
-  //
-  // INT 10 - VESA VBE/DC (Display Data Channel) - READ EDID
-  //
-  //    AX = 4F15h
-  //    BL = 01h
-  //    CX = 0000h  -- port number? =0 - main display
-  //    DX = 0000h  -- block
-  //    ES:DI -> 128-byte buffer for EDID record (see #00127)
-  // Return: AL = 4Fh if function supported
-  //    AH = status
-  //        00h successful
-  //    ES:DI buffer filled
-  //    01h failed (e.g. non-DDC monitor)
-  //
-  ZeroMem (&Regs, sizeof (Regs));
-  Regs.X.AX = VESA_BIOS_EXTENSIONS_EDID;
-  Regs.X.BX = 1;
-  Regs.X.CX = 0;
-  Regs.X.DX = 0;
-  ZeroMem (BiosVideoPrivate->VbeEdidDataBlock, sizeof (VESA_BIOS_EXTENSIONS_EDID_DATA_BLOCK));
-  Regs.E.ES = EFI_SEGMENT ((UINTN) BiosVideoPrivate->VbeEdidDataBlock);
-  Regs.X.DI = EFI_OFFSET ((UINTN) BiosVideoPrivate->VbeEdidDataBlock);
-  
-  LegacyBiosInt86 (BiosVideoPrivate, 0x10, &Regs);
-
-  //
-  // If the call succeed, populate EDID Discovered protocol.
-  //
-  if (Regs.X.AX == VESA_BIOS_EXTENSIONS_STATUS_SUCCESS) {
-    Status = gBS->AllocatePool (
-                    EfiBootServicesData,
-                    sizeof (VESA_BIOS_EXTENSIONS_EDID_DATA_BLOCK),
-                    (VOID **) &BiosVideoPrivate->EdidDiscovered.Edid
-                    );
-    if (EFI_ERROR (Status)) {
-      return Status;
-    }
-
-    BiosVideoPrivate->EdidDiscovered.SizeOfEdid = sizeof (VESA_BIOS_EXTENSIONS_EDID_DATA_BLOCK);
-    CopyMem (
-      BiosVideoPrivate->EdidDiscovered.Edid,
-      BiosVideoPrivate->VbeEdidDataBlock,
-      BiosVideoPrivate->EdidDiscovered.SizeOfEdid
-      );
-  }
-
-  //
-  // Try to locate EDID Override protocol. If present, EDID Active will be populated with the
-  // overridden EDID instead of the EDID Discovered.
-  //
-  Status = gBS->LocateProtocol (
-                  &gEfiEdidOverrideProtocolGuid,
-                  NULL,
-                  (VOID **) &EdidOverride
-                  );
-  if (!EFI_ERROR (Status)) {
-    Status = EdidOverride->GetEdid (
-                             EdidOverride,
-                             BiosVideoPrivate->Handle,
-                             &EdidOverrideAttributes,
-                             &EdidOverrideSize,
-                             &EdidOverrideData
-                             );
-    if (!EFI_ERROR (Status)
-      && EdidOverrideAttributes == 0
-      && EdidOverrideSize != 0
-      && EdidOverrideData != NULL) {
-      BiosVideoPrivate->EdidActive.SizeOfEdid = (UINT32) EdidOverrideSize;
-      BiosVideoPrivate->EdidActive.Edid       = EdidOverrideData;
-    }
-  }
-
-  Status = EFI_SUCCESS;
-
-  //
-  // Copy EDID Discovered data if EDID Active is not yet populated.
-  //
-  if (BiosVideoPrivate->EdidActive.Edid == NULL
-    && BiosVideoPrivate->EdidDiscovered.Edid != NULL) {
-    Status = gBS->AllocatePool (
-                    EfiBootServicesData,
-                    sizeof (VESA_BIOS_EXTENSIONS_EDID_DATA_BLOCK),
-                    (VOID **) &BiosVideoPrivate->EdidActive.Edid
-                    );
-    if (EFI_ERROR (Status)) {
-      return Status;
-    }
-
-    BiosVideoPrivate->EdidActive.SizeOfEdid = BiosVideoPrivate->EdidDiscovered.SizeOfEdid;
-    CopyMem (
-      BiosVideoPrivate->EdidActive.Edid,
-      BiosVideoPrivate->EdidDiscovered.Edid,
-      BiosVideoPrivate->EdidActive.SizeOfEdid
-      );
-  }
-
-  return Status;
-}
-
-/**
-  Collect the resource from destroyed bios video device.
-
-  @param BiosVideoPrivate   Video child device private data structure
-
-**/
-VOID
-BiosVideoDeviceReleaseResource (
-  BIOS_VIDEO_DEV  *BiosVideoPrivate
-  )
-{
-  if (BiosVideoPrivate == NULL) {
-    return;
-  }
-
-  //
-  // Release all the resources occupied by the BIOS_VIDEO_DEV
-  //
-
-  //
-  // Free VGA Frame Buffer
-  //
-  if (BiosVideoPrivate->VgaFrameBuffer != NULL) {
-    gBS->FreePool (BiosVideoPrivate->VgaFrameBuffer);
-  }
-  //
-  // Free VBE Frame Buffer
-  //
-  if (BiosVideoPrivate->VbeFrameBuffer != NULL) {
-    gBS->FreePool (BiosVideoPrivate->VbeFrameBuffer);
-  }
-  //
-  // Free line buffer
-  //
-  if (BiosVideoPrivate->LineBuffer != NULL) {
-    gBS->FreePool (BiosVideoPrivate->LineBuffer);
-  }
-  //
-  // Free mode data
-  //
-  if (BiosVideoPrivate->ModeData != NULL) {
-    gBS->FreePool (BiosVideoPrivate->ModeData);
-  }
-  //
-  // Free memory allocated below 1MB
-  //
-  if (BiosVideoPrivate->PagesBelow1MB != 0) {
-    gBS->FreePages (BiosVideoPrivate->PagesBelow1MB, BiosVideoPrivate->NumberOfPagesBelow1MB);
-  }
-
-  if (BiosVideoPrivate->VbeSaveRestorePages != 0) {
-    gBS->FreePages (BiosVideoPrivate->VbeSaveRestoreBuffer, BiosVideoPrivate->VbeSaveRestorePages);
-  }
-  //
-  // Free graphics output protocol occupied resource
-  //
-  if (BiosVideoPrivate->GraphicsOutput.Mode != NULL) {
-    if (BiosVideoPrivate->GraphicsOutput.Mode->Info != NULL) {
-        gBS->FreePool (BiosVideoPrivate->GraphicsOutput.Mode->Info);
-    }
-    gBS->FreePool (BiosVideoPrivate->GraphicsOutput.Mode);
-  }
-
-  //
-  // Free EDID discovered protocol occupied resource
-  //
-  if (BiosVideoPrivate->EdidDiscovered.Edid != NULL) {
-    gBS->FreePool (BiosVideoPrivate->EdidDiscovered.Edid);
-  }
-  //
-  // Free EDID active protocol occupied resource
-  //
-  if (BiosVideoPrivate->EdidActive.Edid != NULL) {
-    gBS->FreePool (BiosVideoPrivate->EdidActive.Edid);
-  }
-
-  if (BiosVideoPrivate->DevicePath != NULL) {
-    gBS->FreePool (BiosVideoPrivate->DevicePath);
-  }
-
-  gBS->FreePool (BiosVideoPrivate);
-}
-
-/**
-  Judge whether this device is VGA device.
-
-  @param PciIo      Parent PciIo protocol instance pointer
-
-  @retval TRUE  Is vga device
-  @retval FALSE Is no vga device
-**/
-BOOLEAN
-BiosVideoIsVga (
-  IN  EFI_PCI_IO_PROTOCOL       *PciIo
-  )
-{
-  EFI_STATUS    Status;
-  BOOLEAN       VgaCompatible;
-  PCI_TYPE00    Pci;
-
-  VgaCompatible = FALSE;
-
-  //
-  // Read the PCI Configuration Header
-  //
-  Status = PciIo->Pci.Read (
-                        PciIo,
-                        EfiPciIoWidthUint32,
-                        0,
-                        sizeof (Pci) / sizeof (UINT32),
-                        &Pci
-                        );
-  if (EFI_ERROR (Status)) {
-    return VgaCompatible;
-  }
-
-  //
-  // See if this is a VGA compatible controller or not
-  //
-  if ((Pci.Hdr.Command & PCI_DEVICE_ENABLED) == PCI_DEVICE_ENABLED) {
-    if (Pci.Hdr.ClassCode[2] == PCI_CLASS_OLD && Pci.Hdr.ClassCode[1] == PCI_CLASS_OLD_VGA) {
-      //
-      // Base Class 0x00 Sub-Class 0x01 - Backward compatible VGA device
-      //
-      VgaCompatible = TRUE;
-
-    } else if (Pci.Hdr.ClassCode[2] == PCI_CLASS_DISPLAY && Pci.Hdr.ClassCode[1] == PCI_CLASS_DISPLAY_VGA && Pci.Hdr.ClassCode[0] == 0x00) {
-      //
-      // Base Class 3 Sub-Class 0 Programming interface 0 - VGA compatible Display controller
-      //
-      VgaCompatible = TRUE;
-    }
-  }
-
-  return VgaCompatible;
-}
-
-
-/**
-  Check for VBE device
-
-  @param BiosVideoPrivate - Pointer to BIOS_VIDEO_DEV structure
-
-  @retval EFI_SUCCESS VBE device found
-
-**/
-EFI_STATUS
-EFIAPI
-BiosVideoCheckForVbe (
-  IN OUT BIOS_VIDEO_DEV  *BiosVideoPrivate
-  )
-{
-  EFI_STATUS                             Status;
-  VESA_BIOS_EXTENSIONS_VALID_EDID_TIMING ValidEdidTiming;
-  EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE      *GraphicsOutputMode;
-
-  //
-  // Allocate buffer under 1MB for VBE data structures
-  //
-  BiosVideoPrivate->NumberOfPagesBelow1MB = EFI_SIZE_TO_PAGES (
-                                              sizeof (VESA_BIOS_EXTENSIONS_INFORMATION_BLOCK) +
-                                              sizeof (VESA_BIOS_EXTENSIONS_MODE_INFORMATION_BLOCK) +
-                                              sizeof (VESA_BIOS_EXTENSIONS_EDID_DATA_BLOCK) +
-                                              sizeof (VESA_BIOS_EXTENSIONS_CRTC_INFORMATION_BLOCK)
-                                              );
-
-  BiosVideoPrivate->PagesBelow1MB = LEGACY_REGION_BASE - 1;
-
-  Status = gBS->AllocatePages (
-                  AllocateMaxAddress,
-                  EfiBootServicesData,
-                  BiosVideoPrivate->NumberOfPagesBelow1MB,
-                  &BiosVideoPrivate->PagesBelow1MB
-                  );
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  ZeroMem (&ValidEdidTiming, sizeof (VESA_BIOS_EXTENSIONS_VALID_EDID_TIMING));
-
-  //
-  // Fill in the Graphics Output Protocol
-  //
-  BiosVideoPrivate->GraphicsOutput.QueryMode  = BiosVideoGraphicsOutputQueryMode;
-  BiosVideoPrivate->GraphicsOutput.SetMode    = BiosVideoGraphicsOutputSetMode;
-  BiosVideoPrivate->GraphicsOutput.Blt        = BiosVideoGraphicsOutputVbeBlt;
-  BiosVideoPrivate->GraphicsOutput.Mode       = NULL;
-
-  //
-  // Fill in the VBE related data structures
-  //
-  BiosVideoPrivate->VbeInformationBlock       = (VESA_BIOS_EXTENSIONS_INFORMATION_BLOCK *) (UINTN) (BiosVideoPrivate->PagesBelow1MB);
-  BiosVideoPrivate->VbeModeInformationBlock   = (VESA_BIOS_EXTENSIONS_MODE_INFORMATION_BLOCK *) (BiosVideoPrivate->VbeInformationBlock + 1);
-  BiosVideoPrivate->VbeEdidDataBlock          = (VESA_BIOS_EXTENSIONS_EDID_DATA_BLOCK *) (BiosVideoPrivate->VbeModeInformationBlock + 1);
-  BiosVideoPrivate->VbeCrtcInformationBlock   = (VESA_BIOS_EXTENSIONS_CRTC_INFORMATION_BLOCK *) (BiosVideoPrivate->VbeEdidDataBlock + 1);
-  BiosVideoPrivate->VbeSaveRestorePages       = 0;
-  BiosVideoPrivate->VbeSaveRestoreBuffer      = 0;
 
   //
   // Allocate buffer for Graphics Output Protocol mode information
@@ -1262,7 +1097,27 @@ BiosVideoCheckForVbe (
     goto Done;
   }
 
-  Status = BiosVideoGetVbeData (BiosVideoPrivate);
+  GraphicsOutputMode->MaxMode = (UINT32) ModeNumber;
+  //
+  // Current mode is unknow till now, set it to an invalid mode.
+  //
+  GraphicsOutputMode->Mode = GRAPHICS_OUTPUT_INVALIDE_MODE_NUMBER;
+
+  //
+  // Find the best mode to initialize
+  //
+  Status = BiosVideoGraphicsOutputSetMode (&BiosVideoPrivate->GraphicsOutput, (UINT32) PreferMode);
+  if (EFI_ERROR (Status)) {
+    for (PreferMode = 0; PreferMode < ModeNumber; PreferMode ++) {
+      Status = BiosVideoGraphicsOutputSetMode (
+                &BiosVideoPrivate->GraphicsOutput,
+                (UINT32) PreferMode
+                );
+      if (!EFI_ERROR (Status)) {
+        break;
+      }
+    }
+  }
 
 Done:
   //
@@ -2137,9 +1992,9 @@ VgaConvertColor (
 }
 
 /**
-  Graphics Output protocol instance to block transfer for VGA device
+  Grahpics Output protocol instance to block transfer for VGA device
 
-  @param This            Pointer to Graphics Output protocol instance
+  @param This            Pointer to Grahpics Output protocol instance
   @param BltBuffer       The data to transfer to screen
   @param BltOperation    The operation to perform
   @param SourceX         The X coordinate of the source for BltOperation

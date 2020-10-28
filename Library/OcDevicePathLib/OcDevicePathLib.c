@@ -357,7 +357,7 @@ InternalExpandNewPath (
     //
     // The suffix is handled implicitly (by OcGetNextLoadOptionDevicePath).
     // Keep in mind that with this logic our broken node may expand to an
-    // arbitrary number of nodes now.
+    // arbitrary number of nodes now. 
     //
     ExpandedNode = (EFI_DEVICE_PATH_PROTOCOL *) (
       (UINTN) ExpandedPath + PrefixSize
@@ -484,13 +484,16 @@ OcFixAppleBootDevicePathNode (
 
       case MSG_NVME_NAMESPACE_DP:
         //
-        // Workaround for MacPro5,1 using custom NVMe type.
+        // Apple MacPro5,1 includes NVMe driver, however, it contains a typo in MSG_SASEX_DP.
+        // Instead of 0x16 aka 22 (SasEx) it uses 0x22 aka 34 (Unspecified).
+        // Here we replace it with the "right" value.
+        // Reference: https://forums.macrumors.com/posts/28169441.
         //
         if (RestoreContext != NULL) {
           RestoreContext->Types.SasExNvme.SubType = Node.DevPath->SubType;
         }
 
-        Node.NvmeNamespace->Header.SubType = MSG_APPLE_NVME_NAMESPACE_DP;
+        Node.NvmeNamespace->Header.SubType = 0x22;
         return 1;
 
       default:
@@ -506,7 +509,7 @@ OcFixAppleBootDevicePathNode (
 
         if (EISA_ID_TO_NUM (Node.Acpi->HID) == 0x0A03) {
           //
-          // In some types of firmware, UIDs for PciRoot do not match between ACPI tables and UEFI
+          // In some firmwares UIDs for PciRoot do not match between ACPI tables and UEFI
           // UEFI Device Paths. The former contain 0x00, 0x40, 0x80, 0xC0 values, while
           // the latter have ascending numbers.
           // Reference: https://github.com/acidanthera/bugtracker/issues/664.
@@ -518,7 +521,7 @@ OcFixAppleBootDevicePathNode (
           switch (Node.Acpi->UID) {
             case 0x1:
               Node.Acpi->UID = 0;
-              return 1;
+              return 1;            
 
             case 0x10:
             case 0x40:
@@ -547,7 +550,7 @@ OcFixAppleBootDevicePathNode (
               break;
           }
           //
-          // Apple uses PciRoot (EISA 0x0A03) nodes while some types of firmware might use
+          // Apple uses PciRoot (EISA 0x0A03) nodes while some firmwares might use
           // PcieRoot (EISA 0x0A08).
           //
           Node.Acpi->HID = BitFieldWrite32 (
@@ -567,7 +570,7 @@ OcFixAppleBootDevicePathNode (
           RestoreContext->Types.ExtendedAcpi.CID = Node.ExtendedAcpi->CID;
         }
         //
-        // Apple uses PciRoot (EISA 0x0A03) nodes while some types of firmware might use
+        // Apple uses PciRoot (EISA 0x0A03) nodes while some firmwares might use
         // PcieRoot (EISA 0x0A08).
         //
         if (EISA_ID_TO_NUM (Node.ExtendedAcpi->HID) == 0x0A03) {
@@ -579,7 +582,7 @@ OcFixAppleBootDevicePathNode (
             );
           return 1;
         }
-
+        
         if (EISA_ID_TO_NUM (Node.ExtendedAcpi->CID) == 0x0A03
          && EISA_ID_TO_NUM (Node.ExtendedAcpi->HID) != 0x0A08) {
           Node.ExtendedAcpi->CID = BitFieldWrite32 (

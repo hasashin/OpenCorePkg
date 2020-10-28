@@ -1,7 +1,5 @@
 #!/bin/bash
 
-IGNORE_MTOC_VERSION=1
-
 buildutil() {
   UTILS=(
     "AppleEfiSignTool"
@@ -114,8 +112,8 @@ package() {
     cp "${arch}/OpenCore.efi" "${dstdir}/${arch}/EFI/OC" || exit 1
 
     local suffix="${arch}"
-    if [ "${suffix}" = "X64" ]; then
-      suffix="x64"
+    if [ "${suffix}" = "IA32" ]; then
+      suffix="Ia32"
     fi
     cp "${arch}/Bootstrap.efi" "${dstdir}/${arch}/EFI/BOOT/BOOT${suffix}.efi" || exit 1
     cp "${arch}/Bootstrap.efi" "${dstdir}/${arch}/EFI/OC/Bootstrap"/ || exit 1

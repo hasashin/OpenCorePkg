@@ -219,8 +219,6 @@
 			<false/>
 			<key>ResetLogoStatus</key>
 			<false/>
-			<key>OnlyForMacOS</key>
-			<false/>
 		</dict>
 	</dict>
 	<key>Booter</key>
@@ -239,7 +237,7 @@
 				<key>Address</key>
 				<integer>4278190080</integer>
 				<key>Comment</key>
-				<string>Generic: PCI root is a 0x1000 page memory region used by some types of firmware</string>
+				<string>Generic: PCI root is a 0x1000 page memory region used by some firmwares</string>
 				<key>Enabled</key>
 				<false/>
 			</dict>
@@ -932,8 +930,6 @@
 	<dict>
 		<key>Automatic</key>
 		<true/>
-		<key>CustomMemory</key>
-		<false/>
 		<key>Generic</key>
 		<dict>
 			<key>AdviseWindows</key>
@@ -1045,8 +1041,6 @@
 			<key>ConsoleMode</key>
 			<string></string>
 			<key>DirectGopRendering</key>
-			<false/>
-			<key>ForceResolution</key>
 			<false/>
 			<key>IgnoreTextInGraphics</key>
 			<false/>
