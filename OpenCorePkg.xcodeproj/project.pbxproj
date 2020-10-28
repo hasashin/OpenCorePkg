@@ -246,6 +246,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		26F0DD8125496DBB0043CDED /* SampleCustom.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = SampleCustom.plist; sourceTree = "<group>"; };
 		350857D42421373F005A0D86 /* GuiApp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = GuiApp.c; sourceTree = "<group>"; };
 		350857D52421373F005A0D86 /* BmfLib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BmfLib.h; sourceTree = "<group>"; };
 		350857D62421373F005A0D86 /* OpenCanopy.inf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = OpenCanopy.inf; sourceTree = "<group>"; };
@@ -736,6 +737,7 @@
 		3511D55D23FDB2A600CC3B17 /* Docs */ = {
 			isa = PBXGroup;
 			children = (
+				26F0DD8125496DBB0043CDED /* SampleCustom.plist */,
 				3511D55E23FDB2A700CC3B17 /* Configuration.tex */,
 				3511D55F23FDB2A700CC3B17 /* BuildDocs.tool */,
 				3511D56023FDB2A700CC3B17 /* SampleFull.plist */,
