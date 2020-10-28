@@ -3,7 +3,9 @@
 [![Build Status](https://travis-ci.com/acidanthera/OpenCorePkg.svg?branch=master)](https://travis-ci.com/acidanthera/OpenCorePkg) [![Scan Status](https://scan.coverity.com/projects/18169/badge.svg?flat=1)](https://scan.coverity.com/projects/18169)
 -----
 
-OpenCore bootloader with development SDK.
+OpenCore bootloader with development SDK. Modified to add option to disable ACPI patches when booting OS other
+than macOS. To install OpenCore follow standard instructions. Added option is placed in 
+__ACPI__ -> __Quirks__ -> __OnlyForMacOS__. If set to _false_ OpenCore behaves as standard 0.6.2 version.
 
 ## Discussion
 
