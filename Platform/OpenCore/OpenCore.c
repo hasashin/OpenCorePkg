@@ -129,7 +129,7 @@ OcMain (
   DEBUG ((DEBUG_INFO, "OC: OcLoadUefiSupport...\n"));
   OcLoadUefiSupport (Storage, &mOpenCoreConfiguration, &mOpenCoreCpuInfo);
   if(!mOpenCoreConfiguration.Acpi.Quirks.OnlyForMacOS){
-    DEBUG ((DEBUG_INFO, "OC: OcLoadAcpiSupport of any OS...\n"));
+    DEBUG ((DEBUG_INFO, "OC: OcLoadAcpiSupport for any OS...\n"));
     OcLoadAcpiSupport (&mOpenCoreStorage, &mOpenCoreConfiguration);
   }
   DEBUG ((DEBUG_INFO, "OC: OcLoadPlatformSupport...\n"));
