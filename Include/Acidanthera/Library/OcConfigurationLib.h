@@ -80,7 +80,6 @@
 #define OC_ACPI_QUIRKS_FIELDS(_, __) \
   _(BOOLEAN                     , FadtEnableReset     ,     , FALSE  , ()) \
   _(BOOLEAN                     , NormalizeHeaders    ,     , FALSE  , ()) \
-  _(BOOLEAN                     , OnlyForMacOS        ,     , FALSE  , ()) \
   _(BOOLEAN                     , RebaseRegions       ,     , FALSE  , ()) \
   _(BOOLEAN                     , ResetHwSig          ,     , FALSE  , ()) \
   _(BOOLEAN                     , ResetLogoStatus     ,     , FALSE  , ())
@@ -97,11 +96,6 @@
   Apple bootloader section
 **/
 
-///
-/// Apple bootloader quirks.
-///
-
-
 #define OC_BOOTER_WL_ENTRY_FIELDS(_, __) \
   _(UINT64                      , Address          ,     , 0       , () ) \
   _(BOOLEAN                     , Enabled          ,     , FALSE   , () ) \
@@ -112,7 +106,32 @@
   OC_ARRAY (OC_BOOTER_WL_ENTRY, _, __)
   OC_DECLARE (OC_BOOTER_WL_ARRAY)
 
+///
+/// Bootloader patches.
+///
+#define OC_BOOTER_PATCH_ENTRY_FIELDS(_, __) \
+  _(OC_STRING                   , Arch             ,     , OC_STRING_CONSTR ("Any", _, __), OC_DESTR (OC_STRING) ) \
+  _(OC_STRING                   , Comment          ,     , OC_STRING_CONSTR ("", _, __), OC_DESTR (OC_STRING) ) \
+  _(UINT32                      , Count            ,     , 0                           , ()                   ) \
+  _(BOOLEAN                     , Enabled          ,     , FALSE                       , ()                   ) \
+  _(OC_DATA                     , Find             ,     , OC_EDATA_CONSTR (_, __)     , OC_DESTR (OC_DATA)   ) \
+  _(OC_STRING                   , Identifier       ,     , OC_STRING_CONSTR ("", _, __), OC_DESTR (OC_STRING) ) \
+  _(OC_DATA                     , Mask             ,     , OC_EDATA_CONSTR (_, __)     , OC_DESTR (OC_DATA)   ) \
+  _(OC_DATA                     , Replace          ,     , OC_EDATA_CONSTR (_, __)     , OC_DESTR (OC_DATA)   ) \
+  _(OC_DATA                     , ReplaceMask      ,     , OC_EDATA_CONSTR (_, __)     , OC_DESTR (OC_DATA)   ) \
+  _(UINT32                      , Limit            ,     , 0                           , ()                   ) \
+  _(UINT32                      , Skip             ,     , 0                           , ()                   )
+  OC_DECLARE (OC_BOOTER_PATCH_ENTRY)
+
+#define OC_BOOTER_PATCH_ARRAY_FIELDS(_, __) \
+  OC_ARRAY (OC_BOOTER_PATCH_ENTRY, _, __)
+  OC_DECLARE (OC_BOOTER_PATCH_ARRAY)
+
+///
+/// Apple bootloader quirks.
+///
 #define OC_BOOTER_QUIRKS_FIELDS(_, __) \
+  _(BOOLEAN                     , AllowRelocationBlock      ,     , FALSE  , ()) \
   _(BOOLEAN                     , AvoidRuntimeDefrag        ,     , FALSE  , ()) \
   _(BOOLEAN                     , DevirtualiseMmio          ,     , FALSE  , ()) \
   _(BOOLEAN                     , DisableSingleUser         ,     , FALSE  , ()) \
@@ -137,6 +156,7 @@
 ///
 #define OC_BOOTER_CONFIG_FIELDS(_, __) \
   _(OC_BOOTER_WL_ARRAY          , MmioWhitelist    ,     , OC_CONSTR2 (OC_BOOTER_WL_ARRAY, _, __)      , OC_DESTR (OC_BOOTER_WL_ARRAY)) \
+  _(OC_BOOTER_PATCH_ARRAY       , Patch            ,     , OC_CONSTR2 (OC_BOOTER_PATCH_ARRAY, _, __)   , OC_DESTR (OC_BOOTER_PATCH_ARRAY)) \
   _(OC_BOOTER_QUIRKS            , Quirks           ,     , OC_CONSTR2 (OC_BOOTER_QUIRKS, _, __)        , OC_DESTR (OC_BOOTER_QUIRKS))
   OC_DECLARE (OC_BOOTER_CONFIG)
 
@@ -263,6 +283,7 @@
   _(BOOLEAN                     , DisableRtcChecksum          ,     , FALSE  , ()) \
   _(BOOLEAN                     , ExtendBTFeatureFlags        ,     , FALSE  , ()) \
   _(BOOLEAN                     , ExternalDiskIcons           ,     , FALSE  , ()) \
+  _(BOOLEAN                     , ForceSecureBootScheme       ,     , FALSE  , ()) \
   _(BOOLEAN                     , IncreasePciBarSize          ,     , FALSE  , ()) \
   _(BOOLEAN                     , LapicKernelPanic            ,     , FALSE  , ()) \
   _(BOOLEAN                     , LegacyCommpage              ,     , FALSE  , ()) \
@@ -344,6 +365,7 @@ typedef enum {
   _(BOOLEAN                     , AllowSetDefault             ,      , FALSE                   , ()) \
   _(BOOLEAN                     , ExposeSensitiveData         ,      , OCS_EXPOSE_VERSION      , ()) \
   _(BOOLEAN                     , AuthRestart                 ,      , FALSE                   , ()) \
+  _(BOOLEAN                     , BlacklistAppleUpdate        ,      , FALSE                   , ()) \
   _(BOOLEAN                     , EnablePassword              ,      , FALSE                   , ()) \
   _(UINT8                       , PasswordHash                , [64] , {0}                     , ()) \
   _(OC_DATA                     , PasswordSalt                ,      , OC_EDATA_CONSTR (_, __) , OC_DESTR (OC_DATA)) \
@@ -357,6 +379,8 @@ typedef enum {
   _(OC_STRING                   , Comment          ,     , OC_STRING_CONSTR ("", _, __), OC_DESTR (OC_STRING) ) \
   _(BOOLEAN                     , Auxiliary        ,     , FALSE                       , ()                   ) \
   _(BOOLEAN                     , Enabled          ,     , FALSE                       , ()                   ) \
+  _(BOOLEAN                     , RealPath         ,     , FALSE                       , ()                   ) \
+  _(BOOLEAN                     , TextMode         ,     , FALSE                       , ()                   ) \
   _(OC_STRING                   , Name             ,     , OC_STRING_CONSTR ("", _, __), OC_DESTR (OC_STRING) ) \
   _(OC_STRING                   , Path             ,     , OC_STRING_CONSTR ("", _, __), OC_DESTR (OC_STRING) )
   OC_DECLARE (OC_MISC_TOOLS_ENTRY)
@@ -472,6 +496,7 @@ typedef enum {
 #define OC_PLATFORM_NVRAM_CONFIG_FIELDS(_, __) \
   _(OC_STRING                   , Bid                   ,     , OC_STRING_CONSTR ("", _, __)     , OC_DESTR (OC_STRING) ) \
   _(OC_STRING                   , Mlb                   ,     , OC_STRING_CONSTR ("", _, __)     , OC_DESTR (OC_STRING) ) \
+  _(OC_STRING                   , SystemUuid            ,     , OC_STRING_CONSTR ("", _, __)     , OC_DESTR (OC_STRING) ) \
   _(UINT8                       , Rom                   , [6] , {0}                              , ()                   ) \
   _(UINT64                      , FirmwareFeatures      ,     , 0                                , ()                   ) \
   _(UINT64                      , FirmwareFeaturesMask  ,     , 0                                , ()                   )
@@ -550,9 +575,9 @@ typedef enum {
 ///
 #define OC_UEFI_AUDIO_FIELDS(_, __) \
   _(OC_STRING                   , AudioDevice        ,     , OC_STRING_CONSTR ("", _, __)  , OC_DESTR (OC_STRING)) \
+  _(OC_STRING                   , PlayChime          ,     , OC_STRING_CONSTR ("", _, __)  , OC_DESTR (OC_STRING)) \
   _(UINT16                      , VolumeAmplifier    ,     , 0                             , ()) \
   _(BOOLEAN                     , AudioSupport       ,     , FALSE                         , ()) \
-  _(BOOLEAN                     , PlayChime          ,     , FALSE                         , ()) \
   _(UINT8                       , AudioCodec         ,     , 0                             , ()) \
   _(UINT8                       , AudioOut           ,     , 0                             , ()) \
   _(UINT8                       , MinimumVolume      ,     , 0                             , ())

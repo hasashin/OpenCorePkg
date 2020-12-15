@@ -1,7 +1,5 @@
 #!/bin/bash
 
-IGNORE_MTOC_VERSION=1
-
 buildutil() {
   UTILS=(
     "AppleEfiSignTool"

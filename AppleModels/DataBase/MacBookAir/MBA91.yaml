@@ -1,7 +1,7 @@
 BIOSVendor: "Apple Inc."
-BIOSVersion: "1554.40.33.0.0"
-BIOSLegacyVersion: "MBA91.88Z.F000.B00.2010042216"
-BIOSReleaseDate: "10/04/2020"
+BIOSVersion: "1554.60.15.0.0"
+BIOSLegacyVersion: "MBA91.88Z.F000.B00.2011302011"
+BIOSReleaseDate: "11/30/2020"
 SystemManufacturer: "Apple Inc."
 SystemProductName: "MacBookAir9,1"
 SystemVersion: "1.0"
@@ -48,17 +48,17 @@ SmcPlatform:
   - 0x00
 OEMStrings: |-
   Apple ROM Version
-    BIOS ID:      MBA91.88Z.F000.B00.2010042216
+    BIOS ID:      MBA91.88Z.F000.B00.2011302011
     Model:        MBA91
-    EFI Version:  1554.40.33.0.0
-    Built by:     root@bb-g9-pdb95
-    Date:         Sun Oct  4 22:16:57 2020
-    Revision:     1554.40.33 (B&I)
+    EFI Version:  1554.60.15.0.0
+    Built by:     root@bb-g8-pdb18
+    Date:         Mon Nov 30 20:11:52 2020
+    Revision:     1554.60.15 (B&I)
     ROM Version:  F000_B00
     Build Type:   Official Build, RELEASE
     Compiler:     clang-1200.0.30.4
-    UUID:         093142E1-2D9F-3D9C-ABC2-A50BB3EA0CEC
-    UUID:         EB3D39F7-CEBB-3317-954E-539A65F87FFF
+    UUID:         C66E4BDF-B087-3F04-BBED-36BF75A552DF
+    UUID:         433ACA54-8C6F-325D-8F4A-102F72091D90
 Specifications:
   CPUCodename:
     - "Ice Lake Y"
@@ -93,6 +93,7 @@ AppleModelCode:
   - "MNJ0"
   - "MLVD"
   - "MLVF"
+  - "Q72V"
 # Note, first board code is used by macserial
 # FIXME: check
 AppleBoardCode:
