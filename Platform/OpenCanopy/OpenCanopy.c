@@ -883,9 +883,7 @@ GuiFlushScreen (
   ASSERT (DrawContext != NULL);
   ASSERT (DrawContext->Screen != NULL);
 
-  if (mPointerContext != NULL) {
-    GuiRedrawPointer (DrawContext);
-  }
+  GuiRedrawPointer (DrawContext);
 
   NumValidDrawReqs = mNumValidDrawReqs;
   ASSERT (NumValidDrawReqs <= ARRAY_SIZE (mDrawRequests));
@@ -977,17 +975,15 @@ GuiLibConstruct (
   CursorDefaultX = MIN (CursorDefaultX, OutputInfo->HorizontalResolution - 1);
   CursorDefaultY = MIN (CursorDefaultY, OutputInfo->VerticalResolution   - 1);
 
-  if ((PickerContext->PickerAttributes & OC_ATTR_USE_POINTER_CONTROL) != 0) {
-    mPointerContext = GuiPointerConstruct (
-      PickerContext,
-      CursorDefaultX,
-      CursorDefaultY,
-      OutputInfo->HorizontalResolution,
-      OutputInfo->VerticalResolution
-      );
-    if (mPointerContext == NULL) {
-      DEBUG ((DEBUG_WARN, "OCUI: Failed to initialise pointer\n"));
-    }
+  mPointerContext = GuiPointerConstruct (
+    PickerContext,
+    CursorDefaultX,
+    CursorDefaultY,
+    OutputInfo->HorizontalResolution,
+    OutputInfo->VerticalResolution
+    );
+  if (mPointerContext == NULL) {
+    DEBUG ((DEBUG_WARN, "OCUI: Failed to initialise pointer\n"));
   }
 
   mKeyContext = GuiKeyConstruct (PickerContext);
@@ -1153,9 +1149,7 @@ GuiDrawLoop (
   //
   // Clear previous inputs.
   //
-  if (mPointerContext != NULL) {
-    GuiPointerReset (mPointerContext);
-  }
+  GuiPointerReset (mPointerContext);
   GuiKeyReset (mKeyContext);
   //
   // Main drawing loop, time and derieve sub-frequencies as required.
@@ -1487,7 +1481,7 @@ GuiPngToImage (
   UINTN                            Index;
   UINT8                            TmpChannel;
 
-  Status = OcDecodePng (
+  Status = DecodePng (
     ImageData,
     ImageDataSize,
     (VOID **) &Image->Buffer,

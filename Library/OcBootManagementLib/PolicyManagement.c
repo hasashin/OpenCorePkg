@@ -80,7 +80,6 @@ OcGetDevicePolicyType (
           return OC_SCAN_ALLOW_DEVICE_SASEX;
         case MSG_SCSI_DP:
           return OC_SCAN_ALLOW_DEVICE_SCSI;
-        case MSG_APPLE_NVME_NAMESPACE_DP:
         case MSG_NVME_NAMESPACE_DP:
           return OC_SCAN_ALLOW_DEVICE_NVME;
         case MSG_ATAPI_DP:
@@ -281,7 +280,9 @@ OcGetBootDevicePathType (
   OUT BOOLEAN                   *IsGeneric  OPTIONAL
   )
 {
+  EFI_DEVICE_PATH_PROTOCOL    *CurrNode;
   CHAR16                      *Path;
+  UINTN                       PathSize;
   UINTN                       PathLen;
   UINTN                       RestLen;
   UINTN                       Index;
@@ -296,12 +297,31 @@ OcGetBootDevicePathType (
     *IsFolder = FALSE;
   }
 
-  Path = OcCopyDevicePathFullName (DevicePath, NULL);
+  for (CurrNode = DevicePath; !IsDevicePathEnd (CurrNode); CurrNode = NextDevicePathNode (CurrNode)) {
+    if ((DevicePathType (CurrNode) == MEDIA_DEVICE_PATH)
+     && (DevicePathSubType (CurrNode) == MEDIA_FILEPATH_DP)) {
+      //
+      // Perform copying of all the underlying nodes due to potential unaligned access.
+      //
+      PathSize = OcFileDevicePathFullNameSize (CurrNode);
+      if (PathSize == 0) {
+        return OC_BOOT_UNKNOWN;
+      }
+
+      Path = AllocatePool (PathSize);
+      if (Path == NULL) {
+        return OC_BOOT_UNKNOWN;
+      }
+
+      OcFileDevicePathFullName (Path, (FILEPATH_DEVICE_PATH *) CurrNode, PathSize);
+      PathLen = StrLen (Path);
+      break;
+    }
+  }
+
   if (Path == NULL) {
     return OC_BOOT_UNKNOWN;
   }
-
-  PathLen = StrLen (Path);
 
   //
   // Use the trailing character to determine folder.

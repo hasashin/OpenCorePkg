@@ -24,7 +24,6 @@
 [Packages]
   MdePkg/MdePkg.dec
   OpenCorePkg/OpenDuetPkg.dec
-  OpenCorePkg/OpenCorePkg.dec
   OvmfPkg/OvmfPkg.dec
 
 [LibraryClasses]
@@ -37,8 +36,6 @@
   MemoryAllocationLib
   UefiDriverEntryPoint
   DevicePathLib
-  OcMemoryLib
-  OcMiscLib
 
 [Sources]
   BiosVideo.h
@@ -46,13 +43,10 @@
   ComponentName.c
   VesaBiosExtensions.h
   LegacyBiosThunk.c
-  VideoBiosPatch.c
 
 [Protocols]
   gEfiPciIoProtocolGuid
   gEfiVgaMiniPortProtocolGuid
   gEfiLegacy8259ProtocolGuid
-  gEfiEdidActiveProtocolGuid
   gEfiEdidDiscoveredProtocolGuid
-  gEfiEdidOverrideProtocolGuid
-  gOcForceResolutionProtocolGuid
+  gEfiEdidActiveProtocolGuid

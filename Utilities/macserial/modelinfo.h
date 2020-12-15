@@ -114,7 +114,6 @@ static const char *AppleLocations[] = {
   "CMV",
   "YM0",
   "DGK",
-  "FVF"
 };
 
 static const char *AppleLocationNames[] = {
@@ -131,7 +130,6 @@ static const char *AppleLocationNames[] = {
   "Unknown",
   "Unknown",
   "China (Hon Hai/Foxconn)",
-  "Unknown",
   "Unknown"
 };
 

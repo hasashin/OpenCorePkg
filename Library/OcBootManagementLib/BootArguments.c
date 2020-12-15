@@ -45,10 +45,6 @@ OcParseBootArgs (
 
     Arguments->CommandLine = &BA1->CommandLine[0];
 
-    Arguments->KernelAddrP = &BA1->kaddr;
-    Arguments->SystemTableP = &BA1->efiSystemTable;
-    Arguments->RuntimeServicesPG = &BA1->efiRuntimeServicesPageStart;
-    Arguments->RuntimeServicesV = &BA1->efiRuntimeServicesVirtualPageStart;
     Arguments->DeviceTreeP = &BA1->deviceTreeP;
     Arguments->DeviceTreeLength = &BA1->deviceTreeLength;
     Arguments->SystemTable = (EFI_SYSTEM_TABLE*)(UINTN) BA1->efiSystemTable;
@@ -63,10 +59,6 @@ OcParseBootArgs (
 
     Arguments->CommandLine = &BA2->CommandLine[0];
 
-    Arguments->KernelAddrP = &BA2->kaddr;
-    Arguments->SystemTableP = &BA2->efiSystemTable;
-    Arguments->RuntimeServicesPG = &BA2->efiRuntimeServicesPageStart;
-    Arguments->RuntimeServicesV = &BA2->efiRuntimeServicesVirtualPageStart;
     Arguments->DeviceTreeP = &BA2->deviceTreeP;
     Arguments->DeviceTreeLength = &BA2->deviceTreeLength;
     Arguments->SystemTable = (EFI_SYSTEM_TABLE*)(UINTN) BA2->efiSystemTable;
@@ -120,31 +112,23 @@ OcRemoveArgumentFromCmd (
   IN     CONST CHAR8  *Argument
   )
 {
-  CHAR8  *Match;
-  CHAR8  *Updated;
-  UINTN  ArgumentLength;
+  CHAR8 *Match;
 
-  ArgumentLength = AsciiStrLen (Argument);
-  Match = CommandLine;
+  Match = NULL;
 
   do {
-    Match = AsciiStrStr (Match, Argument);
-    if (Match != NULL && (Match == CommandLine || *(Match - 1) == ' ')
-      && (Match[ArgumentLength - 1] == '='
-        || Match[ArgumentLength] == ' '
-        || Match[ArgumentLength] == '\0')) {
+    Match = AsciiStrStr (CommandLine, Argument);
+    if (Match && (Match == CommandLine || *(Match - 1) == ' ')) {
       while (*Match != ' ' && *Match != '\0') {
         *Match++ = ' ';
       }
-    } else if (Match != NULL) {
-      ++Match;
     }
   } while (Match != NULL);
 
   //
   // Write zeroes to reduce data leak
   //
-  Updated = CommandLine;
+  CHAR8 *Updated = CommandLine;
 
   while (CommandLine[0] == ' ') {
     CommandLine++;

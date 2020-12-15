@@ -43,7 +43,7 @@ UefiMain (
 
   OcProvideConsoleGop (FALSE);
 
-  OcSetConsoleResolution (0, 0, 0, FALSE);
+  OcSetConsoleResolution (0, 0, 0);
 
   Status = gBS->HandleProtocol (
     gST->ConsoleOutHandle,
@@ -61,7 +61,7 @@ UefiMain (
     return Status;
   }
 
-  Status = OcRunFirmwareApplication (&gAppleBootPickerFileGuid, TRUE);
+  Status = OcRunAppleBootPicker ();
 
   Pixel.Raw = 0x0;
   if (Status == EFI_NOT_FOUND) {

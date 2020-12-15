@@ -35,9 +35,17 @@
   CustomSlide.c
   KernelSupport.c
   OcAfterBootCompatLib.c
-  RelocationBlock.c
-  RelocationCallGate.h
   ServiceOverrides.c
+  # All headers should go to [Sources], this sounds like a bug in EDK II Build System.
+  Ia32/ContextSwitch.h
+  X64/ContextSwitch.h
+
+[Sources.Ia32]
+  Ia32/ContextSwitchSupport.c
+
+[Sources.X64]
+  X64/ContextSwitch.nasm
+  X64/ContextSwitchSupport.c
 
 [Packages]
   MdePkg/MdePkg.dec

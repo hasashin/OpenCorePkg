@@ -19,7 +19,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/OcGuardLib.h>
 
 BOOLEAN
-OcOverflowTriAddU32 (
+(OcOverflowTriAddU32) (
   UINT32  A,
   UINT32  B,
   UINT32  C,
@@ -36,7 +36,7 @@ OcOverflowTriAddU32 (
 }
 
 BOOLEAN
-OcOverflowTriMulU32 (
+(OcOverflowTriMulU32) (
   UINT32  A,
   UINT32  B,
   UINT32  C,
@@ -53,7 +53,7 @@ OcOverflowTriMulU32 (
 }
 
 BOOLEAN
-OcOverflowAddMulU32 (
+(OcOverflowAddMulU32) (
   UINT32  A,
   UINT32  B,
   UINT32  C,
@@ -70,7 +70,7 @@ OcOverflowAddMulU32 (
 }
 
 BOOLEAN
-OcOverflowMulAddU32 (
+(OcOverflowMulAddU32) (
   UINT32  A,
   UINT32  B,
   UINT32  C,
@@ -87,7 +87,7 @@ OcOverflowMulAddU32 (
 }
 
 BOOLEAN
-OcOverflowTriAddS32 (
+(OcOverflowTriAddS32) (
   INT32  A,
   INT32  B,
   INT32  C,
@@ -104,7 +104,7 @@ OcOverflowTriAddS32 (
 }
 
 BOOLEAN
-OcOverflowTriMulS32 (
+(OcOverflowTriMulS32) (
   INT32  A,
   INT32  B,
   INT32  C,
@@ -121,7 +121,7 @@ OcOverflowTriMulS32 (
 }
 
 BOOLEAN
-OcOverflowAddMulS32 (
+(OcOverflowAddMulS32) (
   INT32  A,
   INT32  B,
   INT32  C,
@@ -138,7 +138,7 @@ OcOverflowAddMulS32 (
 }
 
 BOOLEAN
-OcOverflowMulAddS32 (
+(OcOverflowMulAddS32) (
   INT32  A,
   INT32  B,
   INT32  C,
@@ -156,7 +156,7 @@ OcOverflowMulAddS32 (
 
 
 BOOLEAN
-OcOverflowTriAddU64 (
+(OcOverflowTriAddU64) (
   UINT64  A,
   UINT64  B,
   UINT64  C,
@@ -173,7 +173,7 @@ OcOverflowTriAddU64 (
 }
 
 BOOLEAN
-OcOverflowTriMulU64 (
+(OcOverflowTriMulU64) (
   UINT64  A,
   UINT64  B,
   UINT64  C,
@@ -190,7 +190,7 @@ OcOverflowTriMulU64 (
 }
 
 BOOLEAN
-OcOverflowAddMulU64 (
+(OcOverflowAddMulU64) (
   UINT64  A,
   UINT64  B,
   UINT64  C,
@@ -207,7 +207,7 @@ OcOverflowAddMulU64 (
 }
 
 BOOLEAN
-OcOverflowMulAddU64 (
+(OcOverflowMulAddU64) (
   UINT64  A,
   UINT64  B,
   UINT64  C,
@@ -224,7 +224,7 @@ OcOverflowMulAddU64 (
 }
 
 BOOLEAN
-OcOverflowTriAddS64 (
+(OcOverflowTriAddS64) (
   INT64  A,
   INT64  B,
   INT64  C,
@@ -241,7 +241,7 @@ OcOverflowTriAddS64 (
 }
 
 BOOLEAN
-OcOverflowTriMulS64 (
+(OcOverflowTriMulS64) (
   INT64  A,
   INT64  B,
   INT64  C,
@@ -258,7 +258,7 @@ OcOverflowTriMulS64 (
 }
 
 BOOLEAN
-OcOverflowAddMulS64 (
+(OcOverflowAddMulS64) (
   INT64  A,
   INT64  B,
   INT64  C,
@@ -275,7 +275,7 @@ OcOverflowAddMulS64 (
 }
 
 BOOLEAN
-OcOverflowMulAddS64 (
+(OcOverflowMulAddS64) (
   INT64  A,
   INT64  B,
   INT64  C,
@@ -293,7 +293,7 @@ OcOverflowMulAddS64 (
 
 
 BOOLEAN
-OcOverflowTriAddUN (
+(OcOverflowTriAddUN) (
   UINTN  A,
   UINTN  B,
   UINTN  C,
@@ -310,7 +310,7 @@ OcOverflowTriAddUN (
 }
 
 BOOLEAN
-OcOverflowTriMulUN (
+(OcOverflowTriMulUN) (
   UINTN  A,
   UINTN  B,
   UINTN  C,
@@ -327,7 +327,7 @@ OcOverflowTriMulUN (
 }
 
 BOOLEAN
-OcOverflowAddMulUN (
+(OcOverflowAddMulUN) (
   UINTN  A,
   UINTN  B,
   UINTN  C,
@@ -344,7 +344,7 @@ OcOverflowAddMulUN (
 }
 
 BOOLEAN
-OcOverflowMulAddUN (
+(OcOverflowMulAddUN) (
   UINTN  A,
   UINTN  B,
   UINTN  C,
@@ -361,7 +361,7 @@ OcOverflowMulAddUN (
 }
 
 BOOLEAN
-OcOverflowTriAddSN (
+(OcOverflowTriAddSN) (
   INTN  A,
   INTN  B,
   INTN  C,
@@ -378,7 +378,7 @@ OcOverflowTriAddSN (
 }
 
 BOOLEAN
-OcOverflowTriMulSN (
+(OcOverflowTriMulSN) (
   INTN  A,
   INTN  B,
   INTN  C,
@@ -395,7 +395,7 @@ OcOverflowTriMulSN (
 }
 
 BOOLEAN
-OcOverflowAddMulSN (
+(OcOverflowAddMulSN) (
   INTN  A,
   INTN  B,
   INTN  C,
@@ -412,7 +412,7 @@ OcOverflowAddMulSN (
 }
 
 BOOLEAN
-OcOverflowMulAddSN (
+(OcOverflowMulAddSN) (
   INTN  A,
   INTN  B,
   INTN  C,

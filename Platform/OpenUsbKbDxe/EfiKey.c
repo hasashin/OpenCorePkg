@@ -480,7 +480,10 @@ ErrorExit:
     if (UsbKeyboardDevice->KeyNotifyProcessEvent != NULL) {
       gBS->CloseEvent (UsbKeyboardDevice->KeyNotifyProcessEvent);
     }
-    ReleaseKeyboardLayoutResources (UsbKeyboardDevice);
+    if (UsbKeyboardDevice->KeyboardLayoutEvent != NULL) {
+      ReleaseKeyboardLayoutResources (UsbKeyboardDevice);
+      gBS->CloseEvent (UsbKeyboardDevice->KeyboardLayoutEvent);
+    }
     FreePool (UsbKeyboardDevice);
     UsbKeyboardDevice = NULL;
   }
@@ -611,6 +614,7 @@ USBKeyboardDriverBindingStop (
     KbdFreeNotifyList (&UsbKeyboardDevice->NotifyList);
 
     ReleaseKeyboardLayoutResources (UsbKeyboardDevice);
+    gBS->CloseEvent (UsbKeyboardDevice->KeyboardLayoutEvent);
 
     if (UsbKeyboardDevice->ControllerNameTable != NULL) {
       FreeUnicodeStringTable (UsbKeyboardDevice->ControllerNameTable);

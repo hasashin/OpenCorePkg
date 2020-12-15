@@ -178,9 +178,6 @@ OcPlatformUpdateSmbios (
   EFI_GUID         Uuid;
   UINT8            SmcVersion[APPLE_SMBIOS_SMC_VERSION_SIZE];
   CONST CHAR8      *SystemMemoryStatus;
-  UINT16           Index;
-
-  OC_PLATFORM_MEMORY_DEVICE_ENTRY *MemoryEntry;
 
   ZeroMem (&Data, sizeof (Data));
 
@@ -274,6 +271,10 @@ OcPlatformUpdateSmbios (
 
     if (OC_BLOB_GET (&Config->PlatformInfo.Smbios.ChassisAssetTag)[0] != '\0') {
       Data.ChassisAssetTag = OC_BLOB_GET (&Config->PlatformInfo.Smbios.ChassisAssetTag);
+    }
+
+    if (Config->PlatformInfo.Smbios.MemoryFormFactor != 0) {
+      Data.MemoryFormFactor = &Config->PlatformInfo.Smbios.MemoryFormFactor;
     }
 
     Data.FirmwareFeatures     = Config->PlatformInfo.Smbios.FirmwareFeatures;
@@ -380,46 +381,6 @@ OcPlatformUpdateSmbios (
     }
   }
 
-  //
-  // Inject custom memory info.
-  //
-  if (Config->PlatformInfo.CustomMemory) {
-    if (Config->PlatformInfo.Memory.Devices.Count <= MAX_UINT16) {
-      Data.MemoryDevicesCount   = (UINT16) Config->PlatformInfo.Memory.Devices.Count;
-    } else {
-      Data.MemoryDevicesCount   = MAX_UINT16;
-    }
-    
-    Data.MemoryErrorCorrection  = &Config->PlatformInfo.Memory.ErrorCorrection;
-    Data.MemoryMaxCapacity      = &Config->PlatformInfo.Memory.MaxCapacity;
-    Data.MemoryDataWidth        = &Config->PlatformInfo.Memory.DataWidth;
-    Data.MemoryFormFactor       = &Config->PlatformInfo.Memory.FormFactor;
-    Data.MemoryTotalWidth       = &Config->PlatformInfo.Memory.TotalWidth;
-    Data.MemoryType             = &Config->PlatformInfo.Memory.Type;
-    Data.MemoryTypeDetail       = &Config->PlatformInfo.Memory.TypeDetail;
-
-    if (Data.MemoryDevicesCount) {
-      Data.MemoryDevices = AllocateZeroPool (sizeof (OC_SMBIOS_MEMORY_DEVICE_DATA) * Data.MemoryDevicesCount);
-      if (Data.MemoryDevices == NULL) {
-        DEBUG ((DEBUG_WARN, "OC: Failed to allocate custom memory devices\n"));
-        Data.MemoryDevicesCount = 0;
-      }
-
-      for (Index = 0; Index < Data.MemoryDevicesCount; Index++) {
-        MemoryEntry = Config->PlatformInfo.Memory.Devices.Values[Index];
-
-        Data.MemoryDevices[Index].AssetTag      = OC_BLOB_GET (&MemoryEntry->AssetTag);
-        Data.MemoryDevices[Index].BankLocator   = OC_BLOB_GET (&MemoryEntry->BankLocator);
-        Data.MemoryDevices[Index].DeviceLocator = OC_BLOB_GET (&MemoryEntry->DeviceLocator);
-        Data.MemoryDevices[Index].Manufacturer  = OC_BLOB_GET (&MemoryEntry->Manufacturer);
-        Data.MemoryDevices[Index].PartNumber    = OC_BLOB_GET (&MemoryEntry->PartNumber);
-        Data.MemoryDevices[Index].SerialNumber  = OC_BLOB_GET (&MemoryEntry->SerialNumber);
-        Data.MemoryDevices[Index].Size          = &MemoryEntry->Size;
-        Data.MemoryDevices[Index].Speed         = &MemoryEntry->Speed;
-      }
-    }
-  }
-
   if (Data.SystemProductName != NULL) {
     DEBUG ((DEBUG_INFO, "OC: New SMBIOS: %a model %a\n", Data.SystemManufacturer, Data.SystemProductName));
     Status = AsciiStrCpyS (mCurrentSmbiosProductName, sizeof (mCurrentSmbiosProductName), Data.SystemProductName);
@@ -428,13 +389,9 @@ OcPlatformUpdateSmbios (
     }
   }
 
-  Status = OcSmbiosCreate (SmbiosTable, &Data, UpdateMode, CpuInfo, Config->PlatformInfo.CustomMemory);
+  Status = OcSmbiosCreate (SmbiosTable, &Data, UpdateMode, CpuInfo);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_WARN, "OC: Failed to update SMBIOS - %r\n", Status));
-  }
-
-  if (Data.MemoryDevices != NULL) {
-    FreePool (Data.MemoryDevices);
   }
 }
 
@@ -452,8 +409,6 @@ OcPlatformUpdateNvram (
   UINTN        MlbSize;
   CONST  UINT8 *Rom;
   UINTN        RomSize;
-  CONST CHAR8  *AsciiUuid;
-  EFI_GUID     Uuid;
   UINT64       ExFeatures;
   UINT64       ExFeaturesMask;
   UINT32       Features;
@@ -466,7 +421,6 @@ OcPlatformUpdateNvram (
     MlbSize        = Config->PlatformInfo.Nvram.Mlb.Size - 1;
     Rom            = &Config->PlatformInfo.Nvram.Rom[0];
     RomSize        = sizeof (Config->PlatformInfo.Nvram.Rom);
-    AsciiUuid      = OC_BLOB_GET (&Config->PlatformInfo.Nvram.SystemUuid);
     ExFeatures     = Config->PlatformInfo.Nvram.FirmwareFeatures;
     ExFeaturesMask = Config->PlatformInfo.Nvram.FirmwareFeaturesMask;
   } else {
@@ -476,7 +430,6 @@ OcPlatformUpdateNvram (
     MlbSize        = Config->PlatformInfo.Generic.Mlb.Size - 1;
     Rom            = &Config->PlatformInfo.Generic.Rom[0];
     RomSize        = sizeof (Config->PlatformInfo.Generic.Rom);
-    AsciiUuid      = OC_BLOB_GET (&Config->PlatformInfo.Generic.SystemUuid);
     ExFeatures     = MacInfo->Smbios.FirmwareFeatures;
     ExFeaturesMask = MacInfo->Smbios.FirmwareFeaturesMask;
 
@@ -569,27 +522,6 @@ OcPlatformUpdateNvram (
       EFI_ERROR (Status) ? DEBUG_WARN : DEBUG_INFO,
       "OC: Setting MLB %a - %r\n",
       Mlb,
-      Status
-      ));
-  }
-
-  //
-  // system-id is only visible in BS scope and may be used by EfiBoot
-  // in macOS 11.0 to generate x86legacy ApECID from the first 8 bytes.
-  //
-  Status = AsciiStrToGuid (AsciiUuid, &Uuid);
-  if (!EFI_ERROR (Status)) {
-    Status = gRT->SetVariable (
-      L"system-id",
-      &gAppleVendorVariableGuid,
-      EFI_VARIABLE_BOOTSERVICE_ACCESS,
-      sizeof (Uuid),
-      &Uuid
-      );
-    DEBUG ((
-      EFI_ERROR (Status) ? DEBUG_WARN : DEBUG_INFO,
-      "OC: Setting system-id %g - %r\n",
-      &Uuid,
       Status
       ));
   }

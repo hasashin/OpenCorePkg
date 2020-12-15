@@ -31,7 +31,7 @@
   OpenCore version reported to log and NVRAM.
   OPEN_CORE_VERSION must follow X.Y.Z format, where X.Y.Z are single digits.
 **/
-#define OPEN_CORE_VERSION          "0.6.5"
+#define OPEN_CORE_VERSION          "0.6.2"
 
 /**
   OpenCore build type reported to log and NVRAM.
@@ -46,11 +46,11 @@
 #error "Unknown target definition"
 #endif
 
+#define OPEN_CORE_BOOTSTRAP_PATH   L"EFI\\OC\\Bootstrap\\Bootstrap.efi"
+
+#define OPEN_CORE_DRIVER_PATH      L"EFI\\OC\\OpenCore.efi"
+
 #define OPEN_CORE_ROOT_PATH        L"EFI\\OC"
-
-#define OPEN_CORE_DRIVER_PATH      L"OpenCore.efi"
-
-#define OPEN_CORE_BOOTSTRAP_PATH   L"Bootstrap\\Bootstrap.efi"
 
 #define OPEN_CORE_CONFIG_PATH      L"config.plist"
 
@@ -280,19 +280,17 @@ OcMiscEarlyInit (
 
   @param[in]  Storage    OpenCore storage.
   @param[in]  Config     OpenCore configuration.
-  @param[in]  RootPath   Root load path.
   @param[in]  LoadPath   OpenCore loading path.
-  @param[in]  LoadHandle OpenCore loading handle.
+  @param[out] LoadHandle OpenCore loading handle.
 
   @retval EFI_SUCCESS on success, informational.
 **/
-VOID
+EFI_STATUS
 OcMiscMiddleInit (
   IN  OC_STORAGE_CONTEXT        *Storage,
   IN  OC_GLOBAL_CONFIG          *Config,
-  IN  CONST CHAR16              *RootPath  OPTIONAL,
   IN  EFI_DEVICE_PATH_PROTOCOL  *LoadPath  OPTIONAL,
-  IN  EFI_HANDLE                LoadHandle OPTIONAL
+  OUT EFI_HANDLE                *LoadHandle
   );
 
 /**

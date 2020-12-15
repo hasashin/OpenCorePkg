@@ -28,9 +28,8 @@ OcAllocatePagesFromTop (
   IN     EFI_MEMORY_TYPE         MemoryType,
   IN     UINTN                   Pages,
   IN OUT EFI_PHYSICAL_ADDRESS    *Memory,
-  IN     EFI_GET_MEMORY_MAP      GetMemoryMap   OPTIONAL,
-  IN     EFI_ALLOCATE_PAGES      AllocatePages  OPTIONAL,
-  IN     CHECK_ALLOCATION_RANGE  CheckRange     OPTIONAL
+  IN     EFI_GET_MEMORY_MAP      GetMemoryMap,
+  IN     CHECK_ALLOCATION_RANGE  CheckRange  OPTIONAL
   )
 {
   EFI_STATUS              Status;
@@ -91,7 +90,7 @@ OcAllocatePagesFromTop (
         continue;
       }
 
-      Status = (AllocatePages != NULL ? AllocatePages : gBS->AllocatePages) (
+      Status = gBS->AllocatePages (
         AllocateAddress,
         MemoryType,
         Pages,

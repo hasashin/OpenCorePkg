@@ -157,7 +157,6 @@ VmAllocateMemoryPool (
     NumPages,
     &Addr,
     GetMemoryMap,
-    NULL,
     NULL
     );
 

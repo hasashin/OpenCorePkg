@@ -22,7 +22,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "lodepng.h"
 
 EFI_STATUS
-OcGetPngDims (
+GetPngDims (
   IN  VOID    *Buffer,
   IN  UINTN   Size,
   OUT UINT32  *Width,
@@ -61,7 +61,7 @@ OcGetPngDims (
 }
 
 EFI_STATUS
-OcDecodePng (
+DecodePng (
   IN   VOID    *Buffer,
   IN   UINTN   Size,
   OUT  VOID    **RawData,
@@ -115,7 +115,7 @@ OcDecodePng (
 }
 
 EFI_STATUS
-OcEncodePng (
+EncodePng (
   IN  VOID    *RawData,
   IN  UINT32  Width,
   IN  UINT32  Height,

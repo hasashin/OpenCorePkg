@@ -21,7 +21,6 @@
 #include <Library/DebugLib.h>
 #include <Library/DevicePathLib.h>
 #include <Library/MemoryAllocationLib.h>
-#include <Library/OcDevicePathLib.h>
 #include <Library/OcStringLib.h>
 #include <Library/OcStorageLib.h>
 #include <Library/UefiBootServicesTableLib.h>
@@ -216,10 +215,8 @@ EFI_STATUS
 OcStorageInitFromFs (
   OUT OC_STORAGE_CONTEXT               *Context,
   IN  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *FileSystem,
-  IN  EFI_HANDLE                       StorageHandle  OPTIONAL,
-  IN  EFI_DEVICE_PATH_PROTOCOL         *StoragePath   OPTIONAL,
-  IN  CONST CHAR16                     *StorageRoot,
-  IN  OC_RSA_PUBLIC_KEY                *StorageKey    OPTIONAL
+  IN  CONST CHAR16                     *Path,
+  IN  OC_RSA_PUBLIC_KEY                *StorageKey OPTIONAL
   )
 {
   EFI_STATUS         Status;
@@ -231,7 +228,7 @@ OcStorageInitFromFs (
 
   ASSERT (Context != NULL);
   ASSERT (FileSystem != NULL);
-  ASSERT (StorageRoot != NULL);
+  ASSERT (Path != NULL);
 
   ZeroMem (Context, sizeof (*Context));
 
@@ -245,8 +242,8 @@ OcStorageInitFromFs (
 
   Status = SafeFileOpen (
     RootVolume,
-    &Context->Storage,
-    (CHAR16 *) StorageRoot,
+    &Context->StorageRoot,
+    (CHAR16 *) Path,
     EFI_FILE_MODE_READ,
     0
     );
@@ -254,7 +251,7 @@ OcStorageInitFromFs (
   RootVolume->Close (RootVolume);
 
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_INFO, "OCST: Directory %s cannot be opened - %r\n", StorageRoot, Status));
+    DEBUG ((DEBUG_INFO, "OCST: Directory %s cannot be opened - %r\n", Path, Status));
     return Status;
   }
 
@@ -290,14 +287,11 @@ OcStorageInitFromFs (
   }
 
   gBS->InstallProtocolInterface (
-    &Context->DummyStorageHandle,
+    &Context->StorageHandle,
     &gEfiDevicePathProtocolGuid,
     EFI_NATIVE_INTERFACE,
     &mDummyBootDevicePath
     );
-  Context->StorageHandle   = StorageHandle;
-  Context->StoragePath     = StoragePath;
-  Context->StorageRoot     = StorageRoot;
   Context->DummyDevicePath = &mDummyBootDeviceFilePath.Vendor.Header;
   Context->DummyFilePath   = &mDummyBootDeviceFilePath.VendorFile.Header;
 
@@ -317,18 +311,9 @@ OcStorageFree (
   IN OUT OC_STORAGE_CONTEXT            *Context
   )
 {
-  if (Context->DummyStorageHandle != NULL) {
-    gBS->UninstallProtocolInterface (
-      Context->DummyStorageHandle,
-      &gEfiDevicePathProtocolGuid,
-      &mDummyBootDevicePath
-      );
-    Context->DummyStorageHandle = NULL;
-  }
-
-  if (Context->Storage != NULL) {
-    Context->Storage->Close (Context->Storage);
-    Context->Storage = NULL;
+  if (Context->StorageRoot != NULL) {
+    Context->StorageRoot->Close (Context->StorageRoot);
+    Context->StorageRoot = NULL;
   }
 
   if (Context->HasVault) {
@@ -360,12 +345,12 @@ OcStorageExistsFileUnicode (
     return TRUE;
   }
 
-  if (Context->Storage == NULL) {
+  if (Context->StorageRoot == NULL) {
     return FALSE;
   }
 
   Status = SafeFileOpen (
-    Context->Storage,
+    Context->StorageRoot,
     &File,
     (CHAR16 *) FilePath,
     EFI_FILE_MODE_READ,
@@ -408,7 +393,7 @@ OcStorageReadFileUnicode (
     return NULL;
   }
 
-  if (Context->Storage == NULL) {
+  if (Context->StorageRoot == NULL) {
     //
     // TODO: expand support for other contexts.
     //
@@ -416,7 +401,7 @@ OcStorageReadFileUnicode (
   }
 
   Status = SafeFileOpen (
-    Context->Storage,
+    Context->StorageRoot,
     &File,
     (CHAR16 *) FilePath,
     EFI_FILE_MODE_READ,
@@ -463,81 +448,4 @@ OcStorageReadFileUnicode (
   }
 
   return FileBuffer;
-}
-
-EFI_STATUS
-OcStorageGetInfo (
-  IN  OC_STORAGE_CONTEXT               *Context,
-  IN  CONST CHAR16                     *FilePath,
-  OUT EFI_DEVICE_PATH_PROTOCOL         **DevicePath   OPTIONAL,
-  OUT EFI_HANDLE                       *StorageHandle OPTIONAL,
-  OUT EFI_DEVICE_PATH_PROTOCOL         **StoragePath  OPTIONAL,
-  IN  BOOLEAN                          RealPath
-  )
-{
-  CHAR16   *FullPath;
-  UINTN    RootLength;
-  UINTN    FileSize;
-
-  if (RealPath
-    && Context->StorageHandle != NULL
-    && Context->StorageRoot != NULL
-    && Context->StoragePath != NULL) {
-
-    //
-    // Set the storage handle right away.
-    //
-    *StorageHandle = Context->StorageHandle;
-
-    //
-    // Prepare file path.
-    //
-    RootLength = StrLen (Context->StorageRoot);
-    FileSize   = StrSize (FilePath);
-    FullPath   = AllocatePool (RootLength * sizeof (CHAR16) + sizeof (CHAR16) + FileSize);
-
-    if (FullPath == NULL) {
-      return EFI_OUT_OF_RESOURCES;
-    }
-
-    CopyMem (&FullPath[0], Context->StorageRoot, RootLength * sizeof (CHAR16));
-    FullPath[RootLength] = '\\';
-    CopyMem (&FullPath[RootLength + 1], FilePath, FileSize);
-
-    //
-    // Set joint device path.
-    //
-    *DevicePath = AppendFileNameDevicePath (Context->StoragePath, FullPath);
-    if (*DevicePath == NULL) {
-      FreePool (FullPath);
-      return EFI_OUT_OF_RESOURCES;
-    }
-
-    //
-    // Set onstorage path.
-    //
-    *StoragePath = FileDevicePath (NULL, FullPath);
-    if (*StoragePath == NULL) {
-      FreePool (*DevicePath);
-      FreePool (FullPath);
-      return EFI_OUT_OF_RESOURCES;
-    }
-
-    return EFI_SUCCESS;
-  }
-
-  *StorageHandle = Context->DummyStorageHandle;
-
-  *DevicePath = DuplicateDevicePath (Context->DummyDevicePath);
-  if (*DevicePath == NULL) {
-    return EFI_OUT_OF_RESOURCES;
-  }
-
-  *StoragePath = DuplicateDevicePath (Context->DummyFilePath);
-  if (*StoragePath == NULL) {
-    FreePool (*DevicePath);
-    return EFI_OUT_OF_RESOURCES;
-  }
-
-  return EFI_SUCCESS;
 }

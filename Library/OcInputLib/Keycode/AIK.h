@@ -85,7 +85,7 @@ typedef struct {
 
   //
   // Indicates we are done for any event in case it gets fired.
-  // Not really needed. Added in case of bogus firmware.
+  // Not really needed, put in case of bogus firmwares.
   //
   BOOLEAN               OurJobIsDone;
 } AIK_SELF;

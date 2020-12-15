@@ -1162,8 +1162,6 @@ InitializeBiosIntCaller (
                   );
   ASSERT_EFI_ERROR (Status);
 
-  ZeroMem ((VOID*)(UINTN) LegacyRegionBase, LegacyRegionSize);
-
   mThunkContext.RealModeBuffer     = (VOID*)(UINTN)LegacyRegionBase;
   mThunkContext.RealModeBufferSize = LegacyRegionSize;
   mThunkContext.ThunkAttributes    = 3;

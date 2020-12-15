@@ -211,12 +211,11 @@ OcLoadUefiOutputSupport (
 
   DEBUG ((
     DEBUG_INFO,
-    "OC: Requested resolution is %ux%u@%u (max: %d, force: %d) from %a\n",
+    "OC: Requested resolution is %ux%u@%u (max: %d) from %a\n",
     Width,
     Height,
     Bpp,
     SetMax,
-    Config->Uefi.Output.ForceResolution,
     OC_BLOB_GET (&Config->Uefi.Output.Resolution)
     ));
 
@@ -224,17 +223,15 @@ OcLoadUefiOutputSupport (
     Status = OcSetConsoleResolution (
       Width,
       Height,
-      Bpp,
-      Config->Uefi.Output.ForceResolution
+      Bpp
       );
     DEBUG ((
       EFI_ERROR (Status) && Status != EFI_ALREADY_STARTED ? DEBUG_WARN : DEBUG_INFO,
-      "OC: Changed resolution to %ux%u@%u (max: %d, force: %d) from %a - %r\n",
+      "OC: Changed resolution to %ux%u@%u (max: %d) from %a - %r\n",
       Width,
       Height,
       Bpp,
       SetMax,
-      Config->Uefi.Output.ForceResolution,
       OC_BLOB_GET (&Config->Uefi.Output.Resolution),
       Status
       ));

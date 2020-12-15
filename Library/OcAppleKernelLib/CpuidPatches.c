@@ -160,7 +160,6 @@ PatchKernelCpuIdLegacy (
   UINT8                 *LocationSnow32;
   UINT32                Signature[3];
   BOOLEAN               IsTiger;
-  BOOLEAN               IsTigerOld;
   BOOLEAN               IsLeopard;
   BOOLEAN               IsSnow;
   BOOLEAN               IsLion;
@@ -169,11 +168,7 @@ PatchKernelCpuIdLegacy (
   INT32                 Delta;
   INTERNAL_CPUID_PATCH  Patch;
 
-  //
-  // XNU 8.10.1 and older require an additional patch to _tsc_init.
-  //
   IsTiger     = OcMatchDarwinVersion (KernelVersion, KERNEL_VERSION_TIGER_MIN, KERNEL_VERSION_TIGER_MAX);
-  IsTigerOld  = OcMatchDarwinVersion (KernelVersion, KERNEL_VERSION_TIGER_MIN, KERNEL_VERSION (8, 10, 1));
   IsLeopard   = OcMatchDarwinVersion (KernelVersion, KERNEL_VERSION_LEOPARD_MIN, KERNEL_VERSION_LEOPARD_MAX);
   IsSnow      = OcMatchDarwinVersion (KernelVersion, KERNEL_VERSION_SNOW_LEOPARD_MIN, KERNEL_VERSION_SNOW_LEOPARD_MAX);
   IsLion      = OcMatchDarwinVersion (KernelVersion, KERNEL_VERSION_LION_MIN, KERNEL_VERSION_LION_MAX);
@@ -514,13 +509,8 @@ PatchKernelCpuIdLegacy (
 
   //
   // Locate _tsc_init on 10.4, as there is a CPUID (1) call that needs to be patched.
-  // This only applies to XNU 8.10.1 and older. Some recovery versions of
-  // 10.4.10 have a newer XNU 8.10.3 kernel with code changes to _tsc_init.
   //
-  // It's possible 8.10.2 may require the patch, but there is no sources or kernels
-  // available to verify.
-  //
-  if (IsTigerOld) {
+  if (IsTiger) {
     Status = PatcherGetSymbolAddress (Patcher, "_tsc_init", (UINT8 **) &Record);
     if (EFI_ERROR (Status) || Record >= Last) {
       DEBUG ((DEBUG_WARN, "OCAK: Failed to locate _tsc_init (%p) - %r\n", Record, Status));
@@ -581,8 +571,8 @@ PatchKernelCpuIdLegacy (
     EndPointer - Start,
     Location - Start,
     LocationEnd - Start,
-    IsTigerOld ? LocationTsc - Start : 0,
-    IsTigerOld ? LocationTscEnd - Start : 0,
+    IsTiger ? LocationTsc - Start : 0,
+    IsTiger ? LocationTscEnd - Start : 0,
     StructAddr
     ));
 
@@ -695,7 +685,7 @@ PatchKernelCpuIdLegacy (
   // In 10.4, we need to replace a call to CPUID (1) with a call to
   // the patch area like above in _tsc_init.
   //
-  if (IsTigerOld) {
+  if (IsTiger) {
     Delta = (INT32) (StartPointer - (LocationTsc + 5));
     *LocationTsc++ = 0xE8;
     CopyMem (LocationTsc, &Delta, sizeof (Delta));

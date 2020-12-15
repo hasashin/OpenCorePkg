@@ -170,9 +170,9 @@ OcToolLoadEntry (
   IN  OC_BOOT_ENTRY               *ChosenEntry,
   OUT VOID                        **Data,
   OUT UINT32                      *DataSize,
-  OUT EFI_DEVICE_PATH_PROTOCOL    **DevicePath,
-  OUT EFI_HANDLE                  *StorageHandle,
-  OUT EFI_DEVICE_PATH_PROTOCOL    **StoragePath
+  OUT EFI_DEVICE_PATH_PROTOCOL    **DevicePath         OPTIONAL,
+  OUT EFI_HANDLE                  *ParentDeviceHandle  OPTIONAL,
+  OUT EFI_DEVICE_PATH_PROTOCOL    **ParentFilePath     OPTIONAL
   )
 {
   EFI_STATUS          Status;
@@ -204,25 +204,23 @@ OcToolLoadEntry (
     );
   if (*Data == NULL) {
     DEBUG ((
-      DEBUG_WARN,
+      DEBUG_ERROR,
       "OC: Tool %s cannot be found!\n",
       ToolPath
       ));
     return EFI_NOT_FOUND;
   }
 
-  Status = OcStorageGetInfo (
-    Storage,
-    ToolPath,
-    DevicePath,
-    StorageHandle,
-    StoragePath,
-    ChosenEntry->ExposeDevicePath
-    );
-  if (!EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_INFO, "OC: Returning tool %s\n", ToolPath));
-    DebugPrintDevicePath (DEBUG_INFO, "OC: Tool path", *DevicePath);
-    DebugPrintDevicePath (DEBUG_INFO, "OC: Storage path", *StoragePath);
+  if (DevicePath != NULL) {
+    *DevicePath = Storage->DummyDevicePath;
+  }
+
+  if (ParentDeviceHandle != NULL) {
+    *ParentDeviceHandle = Storage->StorageHandle;
+  }
+
+  if (ParentFilePath != NULL) {
+    *ParentFilePath = Storage->DummyFilePath;
   }
 
   return EFI_SUCCESS;
@@ -585,80 +583,43 @@ OcMiscEarlyInit (
   return EFI_SUCCESS;
 }
 
-/**
-  Registers Bootstrap according to the BootProtect mode.
-
-  @param[in]  RootPath     Root load path.
-  @param[in]  LoadHandle   OpenCore loading handle.
-  @param[in]  BootProtect  Value of the BootProtect config option.
-
-  @returns  BootProtect bitmask.
-**/
-STATIC
-UINT32
-RegisterBootstrap (
-  IN CONST CHAR16  *RootPath OPTIONAL,
-  IN  EFI_HANDLE   LoadHandle OPTIONAL,
-  IN CONST CHAR8   *BootProtect
-  )
-{
-  CHAR16  *BootstrapPath;
-  UINTN   BootstrapSize;
-  BOOLEAN ShortForm;
-
-  if (LoadHandle != NULL) {
-    //
-    // Full-form paths cause entry duplication on e.g. HP 15-ab237ne, InsydeH2O.
-    //
-    if (AsciiStrCmp (BootProtect, "Bootstrap") == 0) {
-      ShortForm = FALSE;
-    } else if (AsciiStrCmp (BootProtect, "BootstrapShort") == 0) {
-      ShortForm = TRUE;
-    } else {
-      return 0;
-    }
-
-    ASSERT (RootPath != NULL);
-    BootstrapSize = StrSize (RootPath) + StrSize (OPEN_CORE_BOOTSTRAP_PATH);
-    BootstrapPath = AllocatePool (BootstrapSize);
-    if (BootstrapPath != NULL) {
-      UnicodeSPrint (BootstrapPath, BootstrapSize, L"%s\\%s", RootPath, OPEN_CORE_BOOTSTRAP_PATH);
-      OcRegisterBootstrapBootOption (
-        L"OpenCore",
-        LoadHandle,
-        BootstrapPath,
-        ShortForm,
-        OPEN_CORE_BOOTSTRAP_PATH,
-        L_STR_LEN (OPEN_CORE_BOOTSTRAP_PATH)
-        );
-      FreePool (BootstrapPath);
-      return OC_BOOT_PROTECT_VARIABLE_BOOTSTRAP;
-    }
-  }
-
-  return 0;
-}
-
-VOID
+EFI_STATUS
 OcMiscMiddleInit (
   IN  OC_STORAGE_CONTEXT        *Storage,
   IN  OC_GLOBAL_CONFIG          *Config,
-  IN  CONST CHAR16              *RootPath  OPTIONAL,
   IN  EFI_DEVICE_PATH_PROTOCOL  *LoadPath  OPTIONAL,
-  IN  EFI_HANDLE                LoadHandle OPTIONAL
+  OUT EFI_HANDLE                *LoadHandle
   )
 {
+  EFI_STATUS   Status;
   CONST CHAR8  *BootProtect;
   UINT32       BootProtectFlag;
+  EFI_HANDLE   OcHandle;
 
   if ((Config->Misc.Security.ExposeSensitiveData & OCS_EXPOSE_BOOT_PATH) != 0) {
     OcStoreLoadPath (LoadPath);
   }
 
-  BootProtect = OC_BLOB_GET (&Config->Misc.Security.BootProtect);
-  DEBUG ((DEBUG_INFO, "OC: LoadHandle %p with BootProtect in %a mode\n", LoadHandle, BootProtect));
+  OcHandle = NULL;
+  if (LoadPath != NULL) {
+    Status = gBS->LocateDevicePath (
+      &gEfiSimpleFileSystemProtocolGuid,
+      &LoadPath,
+      &OcHandle
+      );
+  } else {
+    Status = EFI_UNSUPPORTED;
+  }
 
-  BootProtectFlag = RegisterBootstrap (RootPath, LoadHandle, BootProtect);
+  BootProtect = OC_BLOB_GET (&Config->Misc.Security.BootProtect);
+  DEBUG ((DEBUG_INFO, "OC: LoadHandle %p with BootProtect in %a mode - %r\n", OcHandle, BootProtect, Status));
+
+  BootProtectFlag = Config->Uefi.Quirks.RequestBootVarRouting ? OC_BOOT_PROTECT_VARIABLE_NAMESPACE : 0;
+
+  if (OcHandle != NULL && AsciiStrCmp (BootProtect, "Bootstrap") == 0) {
+    OcRegisterBootOption (L"OpenCore", OcHandle, OPEN_CORE_BOOTSTRAP_PATH);
+    BootProtectFlag = OC_BOOT_PROTECT_VARIABLE_BOOTSTRAP;
+  }
 
   //
   // Inform about boot protection.
@@ -671,11 +632,15 @@ OcMiscMiddleInit (
     &BootProtectFlag
     );
 
+  *LoadHandle = OcHandle;
+
   DEBUG_CODE_BEGIN ();
-  if (LoadHandle != NULL && Config->Misc.Debug.SysReport) {
-    ProduceDebugReport (LoadHandle);
+  if (OcHandle != NULL && Config->Misc.Debug.SysReport) {
+    ProduceDebugReport (OcHandle);
   }
   DEBUG_CODE_END ();
+
+  return Status;
 }
 
 EFI_STATUS
@@ -873,7 +838,6 @@ OcMiscBoot (
   Context->PickerMode            = PickerMode;
   Context->ConsoleAttributes     = Config->Misc.Boot.ConsoleAttributes;
   Context->PickerAttributes      = Config->Misc.Boot.PickerAttributes;
-  Context->BlacklistAppleUpdate  = Config->Misc.Security.BlacklistAppleUpdate;
 
   if ((Config->Misc.Security.ExposeSensitiveData & OCS_EXPOSE_VERSION_UI) != 0) {
     Context->TitleSuffix      = OcMiscGetVersionString ();
@@ -897,8 +861,6 @@ OcMiscBoot (
       Context->CustomEntries[EntryIndex].Arguments = OC_BLOB_GET (&Config->Misc.Entries.Values[Index]->Arguments);
       Context->CustomEntries[EntryIndex].Auxiliary = Config->Misc.Entries.Values[Index]->Auxiliary;
       Context->CustomEntries[EntryIndex].Tool      = FALSE;
-      Context->CustomEntries[EntryIndex].TextMode  = Config->Misc.Entries.Values[Index]->TextMode;
-      Context->CustomEntries[EntryIndex].RealPath  = TRUE; ///< Always true for entries
       ++EntryIndex;
     }
   }
@@ -915,8 +877,6 @@ OcMiscBoot (
       Context->CustomEntries[EntryIndex].Arguments = OC_BLOB_GET (&Config->Misc.Tools.Values[Index]->Arguments);
       Context->CustomEntries[EntryIndex].Auxiliary = Config->Misc.Tools.Values[Index]->Auxiliary;
       Context->CustomEntries[EntryIndex].Tool      = TRUE;
-      Context->CustomEntries[EntryIndex].TextMode  = Config->Misc.Tools.Values[Index]->TextMode;
-      Context->CustomEntries[EntryIndex].RealPath  = Config->Misc.Tools.Values[Index]->RealPath;
       ++EntryIndex;
     }
   }

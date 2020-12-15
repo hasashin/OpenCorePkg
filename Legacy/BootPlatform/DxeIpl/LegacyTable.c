@@ -306,31 +306,43 @@ PrepareFadtTable (
       sizeof(EFI_ACPI_3_0_GENERIC_ADDRESS_STRUCTURE)
       );
   }
-
-  //
-  // Ensure FADT register information is valid and can be trusted before using.
-  // If not, use universal register settings. See AcpiFadtEnableReset() in OcAcpiLib.
-  //
-  if (Fadt->Header.Length >= OFFSET_OF (EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, ResetValue) + sizeof (Fadt->ResetValue)
-    && Fadt->ResetReg.Address != 0
-    && Fadt->ResetReg.RegisterBitWidth == 8) {
-    CopyMem (
-      &AcpiDescription->RESET_REG,
-      &Fadt->ResetReg,
-      sizeof(EFI_ACPI_3_0_GENERIC_ADDRESS_STRUCTURE)
-      );
-    AcpiDescription->RESET_VALUE = Fadt->ResetValue;
-
+  if (Fadt->Header.Length >= OFFSET_OF (EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, ResetValue) + sizeof (Fadt->ResetValue)) {
+    //
+    // Ensure FADT register information is valid and can be trusted before using.
+    // If not, use universal register settings. See AcpiFadtEnableReset() in OcAcpiLib.
+    //
+    if (Fadt->ResetReg.Address != 0 && Fadt->ResetReg.RegisterBitWidth == 8) {
+      CopyMem (
+        &AcpiDescription->RESET_REG,
+        &Fadt->ResetReg,
+        sizeof(EFI_ACPI_3_0_GENERIC_ADDRESS_STRUCTURE)
+        );
+      AcpiDescription->RESET_VALUE = Fadt->ResetValue;
+    } else {
+      //
+      // Use mostly universal default of 0xCF9.
+      //
+      AcpiDescription->RESET_REG.Address = 0xCF9;
+      AcpiDescription->RESET_REG.AddressSpaceId = EFI_ACPI_3_0_SYSTEM_IO;
+      AcpiDescription->RESET_REG.RegisterBitWidth = 8;
+      AcpiDescription->RESET_REG.RegisterBitOffset = 0;
+      AcpiDescription->RESET_REG.AccessSize = EFI_ACPI_3_0_BYTE;
+      AcpiDescription->RESET_VALUE = 6;
+    }
   } else {
     //
-    // Use mostly universal default of 0xCF9.
+    // ** CHANGE START **
+    // Otherwise fill with defaults.
     //
-    AcpiDescription->RESET_REG.Address            = 0xCF9;
-    AcpiDescription->RESET_REG.AddressSpaceId     = EFI_ACPI_3_0_SYSTEM_IO;
-    AcpiDescription->RESET_REG.RegisterBitWidth   = 8;
-    AcpiDescription->RESET_REG.RegisterBitOffset  = 0;
-    AcpiDescription->RESET_REG.AccessSize         = EFI_ACPI_3_0_BYTE;
-    AcpiDescription->RESET_VALUE                  = 6;
+    AcpiDescription->RESET_REG.Address = 0x64;
+    AcpiDescription->RESET_REG.AddressSpaceId = EFI_ACPI_3_0_SYSTEM_IO;
+    AcpiDescription->RESET_REG.RegisterBitWidth = 8;
+    AcpiDescription->RESET_REG.RegisterBitOffset = 0;
+    AcpiDescription->RESET_REG.AccessSize = EFI_ACPI_3_0_BYTE;
+    AcpiDescription->RESET_VALUE = 0xFE;
+    //
+    // ** CHANGE END **
+    //
   }
 
   //

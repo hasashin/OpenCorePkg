@@ -56,9 +56,6 @@ OC_FWRT_CONFIG  *gCurrentConfig;
 STATIC EFI_EVENT                     mTranslateEvent;
 STATIC EFI_GET_VARIABLE              mCustomGetVariable;
 STATIC BOOLEAN                       mKernelStarted;
-#ifdef OC_DEBUG_VAR_SERVICE ///< For file logging disable TPL checking in OcLogAddEntry.
-STATIC BOOLEAN                       mInsideVarService;
-#endif
 
 STATIC
 VOID
@@ -111,12 +108,9 @@ STATIC
 BOOLEAN
 IsEfiBootVar (
   IN   CHAR16    *VariableName,
-  IN   EFI_GUID  *VendorGuid,
-  OUT  CHAR16    *NewVariableName  OPTIONAL
+  IN   EFI_GUID  *VendorGuid
   )
 {
-  UINTN  Size;
-
   if (!CompareGuid (VendorGuid, &gEfiGlobalVariableGuid)) {
     return FALSE;
   }
@@ -125,83 +119,22 @@ IsEfiBootVar (
     return FALSE;
   }
 
-  //
-  // Return OC option path if requested.
-  //
-  // Many modern AMI BIOSes (e.g. ASUS ROG STRIX Z370-F GAMING)
-  // have bugs in AMI Post Manager protocol implementation in AMI TSE.
-  //
-  // The handshake function, responsible for obtaining firmware
-  // boot option list, calls gRT->GetNextVariableName and then matches
-  // every Boot#### variable as a potential boot option regardless
-  // of the GUID namespace it is in.
-  //
-  // The correct way to do it is to only check Boot#### variables in
-  // gEfiGlobalVariableGuid VendorGuid. However, since they made a mistake,
-  // most ASUS firmwares (and perhaps other vendors) get corrupted boot option
-  // list (with e.g. duplicated options) if Boot#### variables are present
-  // outside of gEfiGlobalVariableGuid.
-  //
-  // This is the case with OpenCore as we store macOS-specific boot options
-  // in a separate GUID (gOcVendorVariableGuid). To workaround the issue
-  // we store Boot options with a different prefix - OCBt. This way
-  // Boot0001 becomes OCBt0001 and Bootorder becomes OCBtOrder.
-  //
-  // One of the ways to reproduce the issue is to enable Fast Boot
-  // and let an ExitBootServices handler try to update BootOrder.
-  // It can be easily noticed by BootFlow GetVariable with an uninitialised
-  // size argument.
-  //
-  if (NewVariableName != NULL) {
-    Size = StrSize (VariableName);
-    if (Size > OC_VARIABLE_NAME_SIZE * sizeof (CHAR16)) {
-      return FALSE;
-    }
-
-    CopyMem (&NewVariableName[0], OC_VENDOR_BOOT_VARIABLE_PREFIX, L_STR_SIZE_NT (OC_VENDOR_BOOT_VARIABLE_PREFIX));
-    CopyMem (
-      &NewVariableName[L_STR_LEN (OC_VENDOR_BOOT_VARIABLE_PREFIX)],
-      &VariableName[L_STR_LEN (OC_VENDOR_BOOT_VARIABLE_PREFIX)],
-      Size - L_STR_SIZE_NT (OC_VENDOR_BOOT_VARIABLE_PREFIX)
-      );
-  }
-
   return TRUE;
 }
 
 STATIC
 BOOLEAN
 IsOcBootVar (
-  IN   CHAR16    *VariableName,
-  IN   EFI_GUID  *VendorGuid,
-  OUT  CHAR16    *NewVariableName  OPTIONAL
+  IN CHAR16    *VariableName,
+  IN EFI_GUID  *VendorGuid
   )
 {
-  UINTN  Size;
-
   if (!CompareGuid (VendorGuid, &gOcVendorVariableGuid)) {
     return FALSE;
   }
 
-  if (StrnCmp (OC_VENDOR_BOOT_VARIABLE_PREFIX, VariableName, L_STR_LEN (OC_VENDOR_BOOT_VARIABLE_PREFIX)) != 0) {
+  if (StrnCmp (L"Boot", VariableName, L_STR_LEN (L"Boot")) != 0) {
     return FALSE;
-  }
-
-  //
-  // Return boot option if requested.
-  //
-  if (NewVariableName != NULL) {
-    Size = StrSize (VariableName);
-    if (Size > OC_VARIABLE_NAME_SIZE * sizeof (CHAR16)) {
-      return FALSE;
-    }
-
-    CopyMem (NewVariableName, L"Boot", L_STR_SIZE_NT (L"Boot"));
-    CopyMem (
-      &NewVariableName[L_STR_LEN (L"Boot")],
-      &VariableName[L_STR_LEN (L"Boot")],
-      Size - L_STR_SIZE_NT (L"Boot")
-      );
   }
 
   return TRUE;
@@ -228,7 +161,7 @@ WrapGetTime (
 
   if (!EFI_ERROR (Status)) {
     //
-    // On old AMI firmware, such as found in the GA-Z87X-UD4H, there is a chance
+    // On old AMI firmwares (like the one found in GA-Z87X-UD4H) there is a chance
     // of getting 2047 (EFI_UNSPECIFIED_TIMEZONE) from GetTime. This is valid,
     // yet is disliked by some software including but not limited to UEFI Shell.
     // See the patch: https://lists.01.org/pipermail/edk2-devel/2018-May/024534.html
@@ -328,7 +261,6 @@ WrapGetVariable (
   )
 {
   EFI_STATUS  Status;
-  CHAR16      TempName[OC_VARIABLE_NAME_SIZE];
   BOOLEAN     Ints;
   BOOLEAN     Wp;
 
@@ -342,14 +274,6 @@ WrapGetVariable (
     return EFI_INVALID_PARAMETER;
   }
 
-#ifdef OC_DEBUG_VAR_SERVICE
-  if (!mInsideVarService && StrCmp (VariableName, L"EfiTime") != 0) {
-    mInsideVarService = TRUE;
-    DEBUG ((DEBUG_INFO, "GETVAR %g:%s (%u)\n", VendorGuid, VariableName, (UINT32) *DataSize));
-    mInsideVarService = FALSE;
-  }
-#endif
-
   //
   // Abort access to write-only variables.
   //
@@ -362,8 +286,7 @@ WrapGetVariable (
   //
   // Redirect Boot-prefixed variables to our own GUID.
   //
-  if (gCurrentConfig->BootVariableRedirect && IsEfiBootVar (VariableName, VendorGuid, TempName)) {
-    VariableName = TempName;
+  if (gCurrentConfig->BootVariableRedirect && IsEfiBootVar (VariableName, VendorGuid)) {
     VendorGuid = &gOcVendorVariableGuid;
   }
 
@@ -394,19 +317,11 @@ WrapGetNextVariableName (
   EFI_STATUS  Status;
   UINTN       Index;
   UINTN       Size;
-  CHAR16      TempName[OC_VARIABLE_NAME_SIZE];
+  CHAR16      TempName[256];
   EFI_GUID    TempGuid;
   BOOLEAN     StartBootVar;
   BOOLEAN     Ints;
   BOOLEAN     Wp;
-
-#ifdef OC_DEBUG_VAR_SERVICE
-  if (!mInsideVarService) {
-    mInsideVarService = TRUE;
-    DEBUG ((DEBUG_INFO, "NEXVAR %g:%s (%u/%u)\n", VendorGuid, VariableName, (UINT32) *VariableNameSize));
-    mInsideVarService = FALSE;
-  }
-#endif
 
   //
   // Perform initial checks as per spec. Last check is part of:
@@ -459,7 +374,7 @@ WrapGetNextVariableName (
   // then go through the whole variable list and return
   // variables except EfiBoot.
   //
-  if (!IsEfiBootVar (TempName, &TempGuid, TempName)) {
+  if (!IsEfiBootVar (TempName, &TempGuid)) {
     while (TRUE) {
       //
       // Request for variables.
@@ -468,7 +383,7 @@ WrapGetNextVariableName (
       Status = mStoredGetNextVariableName (&Size, TempName, &TempGuid);
 
       if (!EFI_ERROR (Status)) {
-        if (!IsEfiBootVar (TempName, &TempGuid, NULL)) {
+        if (!IsEfiBootVar (TempName, &TempGuid)) {
           Size = StrSize (TempName); ///< Not guaranteed to be updated with EFI_SUCCESS.
 
           if (*VariableNameSize >= Size) {
@@ -541,7 +456,6 @@ WrapGetNextVariableName (
   } else {
     //
     // Switch to real GUID as stored in variable storage.
-    // TempName is already updated with the new name.
     //
     CopyGuid (&TempGuid, &gOcVendorVariableGuid);
   }
@@ -554,7 +468,7 @@ WrapGetNextVariableName (
     Status = mStoredGetNextVariableName (&Size, TempName, &TempGuid);
 
     if (!EFI_ERROR (Status)) {
-      if (IsOcBootVar (TempName, &TempGuid, TempName)) {
+      if (IsOcBootVar (TempName, &TempGuid)) {
         Size = StrSize (TempName); ///< Not guaranteed to be updated with EFI_SUCCESS.
 
         if (*VariableNameSize >= Size) {
@@ -608,17 +522,8 @@ WrapSetVariable (
   )
 {
   EFI_STATUS  Status;
-  CHAR16      TempName[OC_VARIABLE_NAME_SIZE];
   BOOLEAN     Ints;
   BOOLEAN     Wp;
-
-#ifdef OC_DEBUG_VAR_SERVICE
-  if (!mInsideVarService) {
-    mInsideVarService = TRUE;
-    DEBUG ((DEBUG_INFO, "SETVAR %g:%s (%u/%u)\n", VendorGuid, VariableName, (UINT32) DataSize, Attributes));
-    mInsideVarService = FALSE;
-  }
-#endif
 
   //
   // Abort access when running with read-only NVRAM.
@@ -664,8 +569,7 @@ WrapSetVariable (
   // Redirect Boot-prefixed variables to our own GUID.
   //
   if (gCurrentConfig->BootVariableRedirect
-    && IsEfiBootVar (VariableName, VendorGuid, TempName)) {
-    VariableName = TempName;
+    && IsEfiBootVar (VariableName, VendorGuid)) {
     VendorGuid = &gOcVendorVariableGuid;
   }
 

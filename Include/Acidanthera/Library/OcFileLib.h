@@ -339,7 +339,7 @@ OcOpenFileByRemainingDevicePath (
 /**
   Open a file or directory by device path. This is a modified
   version of EfiOpenFileByDevicePath function, which handles paths
-  with trailing slashes, that cause Open failure on old firmware.
+  with trailing slashes, that cause Open failure on old firmwares.
   EfiOpenFileByDevicePath is additionally not available in UDK.
 
   See more details at:
@@ -480,23 +480,6 @@ OcGetGptPartitionEntry (
 EFI_DEVICE_PATH_PROTOCOL *
 CreateFvFileDevicePath (
   IN EFI_GUID  *FileGuid
-  );
-
-/**
-  Reads firmware file section to pool-allocated buffer.
-
-  @param[in]  FileGuid      Firmware file GUID.
-  @param[in]  SectionType   Section type to read.
-  @param[out] FileSize      Size of the section read.
-
-  @return file contents allocated from pool.
-  @retval NULL on failure (e.g. when a file is not present).
-**/
-VOID *
-ReadFvFileSection (
-  IN  EFI_GUID          *FileGuid,
-  IN  UINT8             SectionType,
-  OUT UINT32            *FileSize
   );
 
 #endif // OC_FILE_LIB_H

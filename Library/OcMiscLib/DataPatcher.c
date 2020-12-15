@@ -27,6 +27,7 @@ FindPattern (
   IN INT32         DataOff
   )
 {
+  BOOLEAN  Matches;
   UINT32   Index;
 
   ASSERT (DataOff >= 0);
@@ -35,32 +36,20 @@ FindPattern (
     return -1;
   }
 
-  if (PatternMask == NULL) {
-    while (DataOff + PatternSize <= DataSize) {
-      for (Index = 0; Index < PatternSize; ++Index) {
-        if (Data[DataOff + Index] != Pattern[Index]) {
-          break;
-        }
+  while (DataOff + PatternSize < DataSize) {
+    Matches = TRUE;
+    for (Index = 0; Index < PatternSize; ++Index) {
+      if ((PatternMask == NULL && Data[DataOff + Index] != Pattern[Index])
+      || (PatternMask != NULL && (Data[DataOff + Index] & PatternMask[Index]) != Pattern[Index])) {
+        Matches = FALSE;
+        break;
       }
-
-      if (Index == PatternSize) {
-        return DataOff;
-      }
-      ++DataOff;
     }
-  } else {
-    while (DataOff + PatternSize <= DataSize) {
-      for (Index = 0; Index < PatternSize; ++Index) {
-        if ((Data[DataOff + Index] & PatternMask[Index]) != Pattern[Index]) {
-          break;
-        }
-      }
 
-      if (Index == PatternSize) {
-        return DataOff;
-      }
-      ++DataOff;
+    if (Matches) {
+      return DataOff;
     }
+    ++DataOff;
   }
 
   return -1;

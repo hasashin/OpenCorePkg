@@ -101,7 +101,6 @@ InternalLoadBootEntry (
 UINT16 *
 InternalGetBootOrderForBooting (
   IN  EFI_GUID  *BootVariableGuid,
-  IN  BOOLEAN   BlacklistAppleUpdate,
   OUT UINTN     *BootOrderCount
   );
 
@@ -112,17 +111,25 @@ InternalDebugBootEnvironment (
   IN UINTN                    BootOrderCount
   );
 
-EFI_LOAD_OPTION *
-InternalGetBootOptionData (
-  OUT UINTN           *OptionSize,
-  IN  UINT16          BootOption,
-  IN  CONST EFI_GUID  *BootGuid
-  );
+/**
+  Retrieves booting relevant data from an UEFI Boot#### option.
+  If BootName is NULL, a BDS-style process is assumed and inactive as well as
+  non-Boot type applications are ignored.
 
+  @param[in]  BootOption        The boot option's index.
+  @param[out] BootName          On output, the boot option's description.
+  @param[out] OptionalDataSize  On output, the optional data size.
+  @param[out] OptionalData      On output, a pointer to the optional data.
+
+  @returns Device path allocated from pool or NULL.
+**/
 EFI_DEVICE_PATH_PROTOCOL *
-InternalGetBootOptionPath (
-  IN EFI_LOAD_OPTION  *LoadOption,
-  IN UINTN            LoadOptionSize
+InternalGetBootOptionData (
+  IN  UINT16   BootOption,
+  IN  EFI_GUID *BootGuid,
+  OUT CHAR16   **BootName  OPTIONAL,
+  OUT UINT32   *OptionalDataSize  OPTIONAL,
+  OUT VOID     **OptionalData  OPTIONAL
   );
 
 /**

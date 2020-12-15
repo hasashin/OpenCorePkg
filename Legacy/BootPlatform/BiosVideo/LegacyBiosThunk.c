@@ -43,8 +43,6 @@ InitializeBiosIntCaller (
                   );
   ASSERT_EFI_ERROR (Status);
 
-  ZeroMem ((VOID*)(UINTN) LegacyRegionBase, LegacyRegionSize);
-
   ThunkContext->RealModeBuffer     = (VOID*)(UINTN)LegacyRegionBase;
   ThunkContext->RealModeBufferSize = LegacyRegionSize;
   ThunkContext->ThunkAttributes    = THUNK_ATTRIBUTE_BIG_REAL_MODE|THUNK_ATTRIBUTE_DISABLE_A20_MASK_INT_15;

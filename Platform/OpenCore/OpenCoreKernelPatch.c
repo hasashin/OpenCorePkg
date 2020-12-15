@@ -253,10 +253,6 @@ OcKernelApplyPatches (
       OcKernelApplyQuirk (KernelQuirkExtendBTFeatureFlags, CacheType, DarwinVersion, Context, NULL);
     }
 
-    if (Config->Kernel.Quirks.ForceSecureBootScheme) {
-      OcKernelApplyQuirk (KernelQuirkForceSecureBootScheme, CacheType, DarwinVersion, Context, NULL);
-    }
-
     if (Config->Kernel.Emulate.DummyPowerManagement) {
       MaxKernel   = OcParseDarwinVersion (OC_BLOB_GET (&Config->Kernel.Emulate.MaxKernel));
       MinKernel   = OcParseDarwinVersion (OC_BLOB_GET (&Config->Kernel.Emulate.MinKernel));

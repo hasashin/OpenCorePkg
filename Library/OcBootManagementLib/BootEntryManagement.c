@@ -29,7 +29,6 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/OcBootManagementLib.h>
 #include <Library/OcDevicePathLib.h>
-#include <Library/OcConsoleLib.h>
 #include <Library/OcFileLib.h>
 #include <Library/OcStringLib.h>
 #include <Library/UefiBootServicesTableLib.h>
@@ -237,9 +236,6 @@ IsOpenCoreBootloader (
     sizeof (FileReadMagic),
     FileReadMagic
     );
-
-  File->Close(File);
-
   if (EFI_ERROR (Status)) {
     return FALSE;
   }
@@ -598,9 +594,6 @@ AddBootEntryFromCustomEntry (
       return EFI_OUT_OF_RESOURCES;
     }
   }
-
-  BootEntry->LaunchInText = CustomEntry->TextMode;
-  BootEntry->ExposeDevicePath = CustomEntry->RealPath;
 
   BootEntry->LoadOptionsSize = (UINT32) AsciiStrLen (CustomEntry->Arguments);
   if (BootEntry->LoadOptionsSize > 0) {
@@ -1009,8 +1002,6 @@ AddBootEntryFromBootOption (
   INTN                       NumPatchedNodes;
   BOOLEAN                    IsAppleLegacy;
   BOOLEAN                    IsRoot;
-  EFI_LOAD_OPTION            *LoadOption;
-  UINTN                      LoadOptionSize;
 
   DEBUG ((DEBUG_INFO, "OCB: Building entry from Boot%04x\n", BootOption));
 
@@ -1019,28 +1010,16 @@ AddBootEntryFromBootOption (
   // Discard load options for security reasons.
   // Also discard boot name to avoid confusion.
   //
-  LoadOption = InternalGetBootOptionData (
-    &LoadOptionSize,
+  DevicePath = InternalGetBootOptionData (
     BootOption,
-    BootContext->BootVariableGuid
-    );
-  if (LoadOption == NULL) {
-    return EFI_NOT_FOUND;
-  }
-
-  DevicePath = InternalGetBootOptionPath (
-    LoadOption,
-    LoadOptionSize
+    BootContext->BootVariableGuid,
+    NULL,
+    NULL,
+    NULL
     );
   if (DevicePath == NULL) {
-    FreePool (LoadOption);
     return EFI_NOT_FOUND;
   }
-  //
-  // Re-use the Load Option buffer for the Device Path.
-  //
-  CopyMem (LoadOption, DevicePath, LoadOption->FilePathListLength);
-  DevicePath = (EFI_DEVICE_PATH_PROTOCOL *) LoadOption;
 
   //
   // Get BootCamp device path stored in special variable.
@@ -1701,7 +1680,6 @@ OcScanForBootEntries (
   if (Context->BootOrder == NULL) {
     Context->BootOrder = InternalGetBootOrderForBooting (
       BootContext->BootVariableGuid,
-      Context->BlacklistAppleUpdate,
       &Context->BootOrderCount
       );
   }
@@ -1792,7 +1770,6 @@ OcScanForDefaultBootEntry (
   if (Context->BootOrder == NULL) {
     Context->BootOrder = InternalGetBootOrderForBooting (
       BootContext->BootVariableGuid,
-      Context->BlacklistAppleUpdate,
       &Context->BootOrderCount
       );
   }
@@ -1945,7 +1922,7 @@ OcLoadBootEntry (
     &DmgLoadContext
     );
   if (!EFI_ERROR (Status)) {
-    Status = Context->StartImage (BootEntry, EntryHandle, NULL, NULL, BootEntry->LaunchInText);
+    Status = Context->StartImage (BootEntry, EntryHandle, NULL, NULL);
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_WARN, "OCB: StartImage failed - %r\n", Status));
       //

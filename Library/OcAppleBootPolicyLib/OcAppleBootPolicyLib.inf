@@ -59,5 +59,4 @@
   UefiBootServicesTableLib
   OcGuardLib
   OcFileLib
-  OcStringLib
   OcXmlLib

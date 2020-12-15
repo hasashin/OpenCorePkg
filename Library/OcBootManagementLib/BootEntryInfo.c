@@ -415,7 +415,6 @@ OcGetBootEntryIcon (
 {
   EFI_STATUS                       Status;
   CHAR16                           *BootDirectoryName;
-  CHAR16                           *GuidPrefix;
   EFI_HANDLE                       Device;
   EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *FileSystem;
 
@@ -449,13 +448,6 @@ OcGetBootEntryIcon (
 
   if (EFI_ERROR (Status)) {
     return Status;
-  }
-
-  GuidPrefix = BootDirectoryName[0] == '\\' ? &BootDirectoryName[1] : &BootDirectoryName[0];
-  if (HasValidGuidStringPrefix (GuidPrefix) && GuidPrefix[GUID_STRING_LENGTH] == '\\') {
-    GuidPrefix[GUID_STRING_LENGTH+1] = '\0';
-  } else {
-    GuidPrefix = NULL;
   }
 
   Status = gBS->HandleProtocol (
@@ -492,35 +484,15 @@ OcGetBootEntryIcon (
     }
   }
 
-  if (GuidPrefix != NULL) {
-    Status = InternalGetAppleImage (
-      FileSystem,
-      GuidPrefix,
-      L".VolumeIcon.icns",
-      ImageData,
-      DataLength
-      );
-  } else {
-    Status = EFI_UNSUPPORTED;
-  }
+  Status = InternalGetAppleImage (
+    FileSystem,
+    L"",
+    L".VolumeIcon.icns",
+    ImageData,
+    DataLength
+    );
 
-  if (EFI_ERROR (Status)) {
-    Status = InternalGetAppleImage (
-      FileSystem,
-      L"",
-      L".VolumeIcon.icns",
-      ImageData,
-      DataLength
-      );
-  }
-
-  DEBUG ((
-    DEBUG_INFO,
-    "OCB: OcGetBootEntryIcon - %s in %s (volume icon) - %r\n",
-    BootEntry->Name,
-    GuidPrefix,
-    Status
-    ));
+  DEBUG ((DEBUG_INFO, "OCB: OcGetBootEntryIcon - %s (volume icon) - %r\n", BootEntry->Name, Status));
 
   FreePool (BootDirectoryName);
 
