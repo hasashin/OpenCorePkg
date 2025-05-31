@@ -1,3 +1,10 @@
+>[!NOTE]
+>This fork was created to block ACPI changes made by OpenCore to be applied while booting Windows.
+>These changes were PR-ed into upstream but were rejected as ACPI rules have os filtering built-in.
+>However for me this didn't work and filters were ignored.
+>
+>This fork won't be updated anymore as need for those changes vanished.
+
 <img src="https://github.com/acidanthera/OpenCorePkg/blob/master/Docs/Logos/OpenCore_with_text_Small.png" width="200" height="48"/>
 
 [![Build Status](https://github.com/acidanthera/OpenCorePkg/workflows/CI/badge.svg?branch=master)](https://github.com/acidanthera/OpenCorePkg/actions) [![Scan Status](https://scan.coverity.com/projects/18169/badge.svg?flat=1)](https://scan.coverity.com/projects/18169)
